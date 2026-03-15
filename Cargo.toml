@@ -7,6 +7,8 @@ repository = "https://github.com/ZAAFHachemrachid/projm"
 readme = "README.md"
 keywords = ["cli", "projects", "navigator", "developer-tools"]
 categories = ["command-line-utilities", "development-tools"]
+description = "Project organizer and fuzzy navigator for developers — classify, group, and jump to projects from the terminal"
+
 
 [[bin]]
 name = "projm"
