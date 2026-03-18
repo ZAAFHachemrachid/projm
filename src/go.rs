@@ -1,5 +1,6 @@
-use crate::{classify::Category, config};
+use crate::{classify::Category, config, editors, prefs::Prefs};
 use anyhow::Result;
+use colored::Colorize;
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, FuzzySelect, Select};
 use std::path::{Path, PathBuf};
@@ -7,18 +8,10 @@ use std::path::{Path, PathBuf};
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 struct Project {
-    name:     String,
-    path:     PathBuf,
+    name: String,
+    path: PathBuf,
     category: Category,
 }
-
-const EDITORS: &[(&str, &str)] = &[
-    ("nvim",         "nvim"),
-    ("zed",          "zed"),
-    ("code",         "code"),
-    ("antigravity",  "antigravity"),
-    ("kiro",         "kiro"),
-];
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
@@ -34,10 +27,6 @@ pub fn run() -> Result<()> {
     }
 
     // ── Collect projects ──────────────────────────────────────────────────────
-    // Layout handled:
-    //   base/apps/trashnet                     ← solo
-    //   base/apps/drivetrack/drivetrack-api    ← grouped (one level deeper)
-    //   base/apps/drivetrack/drivetrack-web
     let mut projects: Vec<Project> = Vec::new();
 
     for cat in Category::all() {
@@ -48,35 +37,30 @@ pub fn run() -> Result<()> {
 
         let mut top: Vec<_> = std::fs::read_dir(&cat_dir)?
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path().is_dir()
-                    && !e.file_name().to_string_lossy().starts_with('.')
-            })
+            .filter(|e| e.path().is_dir() && !e.file_name().to_string_lossy().starts_with('.'))
             .collect();
         top.sort_by_key(|e| e.file_name());
 
         for entry in top {
             if is_group_folder(&entry.path()) {
-                // Expand: each child is a real project
                 let mut children: Vec<_> = std::fs::read_dir(entry.path())?
                     .filter_map(|e| e.ok())
                     .filter(|e| {
-                        e.path().is_dir()
-                            && !e.file_name().to_string_lossy().starts_with('.')
+                        e.path().is_dir() && !e.file_name().to_string_lossy().starts_with('.')
                     })
                     .collect();
                 children.sort_by_key(|e| e.file_name());
                 for child in children {
                     projects.push(Project {
-                        name:     child.file_name().to_string_lossy().to_string(),
-                        path:     child.path(),
+                        name: child.file_name().to_string_lossy().to_string(),
+                        path: child.path(),
                         category: cat.clone(),
                     });
                 }
             } else {
                 projects.push(Project {
-                    name:     entry.file_name().to_string_lossy().to_string(),
-                    path:     entry.path(),
+                    name: entry.file_name().to_string_lossy().to_string(),
+                    path: entry.path(),
                     category: cat.clone(),
                 });
             }
@@ -91,13 +75,12 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
-    // ── Build display labels ──────────────────────────────────────────────────
+    // ── Fuzzy-pick project ────────────────────────────────────────────────────
     let labels: Vec<String> = projects
         .iter()
         .map(|p| format!("{}  {}", p.category.label(), p.name))
         .collect();
 
-    // All interactive UI → stderr; only the final eval command → stdout
     let term = Term::stderr();
 
     let idx = FuzzySelect::with_theme(&ColorfulTheme::default())
@@ -105,36 +88,74 @@ pub fn run() -> Result<()> {
         .items(&labels)
         .interact_on(&term)?;
 
-    let editor_labels: Vec<&str> = EDITORS.iter().map(|(label, _)| *label).collect();
-    let editor_idx = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("editor")
-        .items(&editor_labels)
-        .default(0)
-        .interact_on(&term)?;
+    let project = &projects[idx];
 
-    let path   = shell_quote(&projects[idx].path.to_string_lossy());
-    let editor = EDITORS[editor_idx].1;
+    // ── Pick editor (v0.2) ────────────────────────────────────────────────────
+    let editor_binary = pick_editor(&project.path, &term)?;
+
+    // ── Emit eval-able command ────────────────────────────────────────────────
+    let path = shell_quote(&project.path.to_string_lossy());
     let cd_cmd = detect_cd();
 
-    // This single line is eval'd by the pg() shell function
-    println!("{} {} && {} .", cd_cmd, path, editor);
+    println!("{} {} && {} .", cd_cmd, path, editor_binary);
 
     Ok(())
 }
 
+// ── Editor selection (v0.2) ───────────────────────────────────────────────────
+
+/// Returns the binary name of the chosen editor.
+///
+/// Decision tree:
+///   0 installed → bail with helpful hint
+///   1 installed → use it silently, skip the picker
+///   2+          → show picker, pre-select last-used, persist choice
+fn pick_editor(project_path: &Path, term: &Term) -> Result<String> {
+    let installed = editors::detect_installed();
+
+    match installed.len() {
+        0 => anyhow::bail!(
+            "no supported editors found on $PATH.\n\
+             Install one of: nvim, vim, hx, zed, code, cursor, idea, emacs"
+        ),
+
+        1 => {
+            let e = &installed[0];
+            term.write_line(&format!("  {} {}", "→".dimmed(), e.name.bold()))?;
+            Ok(e.binary.to_owned())
+        }
+
+        _ => {
+            let mut prefs = Prefs::load()?;
+
+            // Pre-select the last-used editor if it's still installed.
+            let default_idx = prefs
+                .last_editor_for(project_path)
+                .and_then(|saved| installed.iter().position(|e| e.binary == saved))
+                .unwrap_or(0);
+
+            let labels: Vec<String> = installed.iter().map(|e| format!("  {}", e.name)).collect();
+
+            let chosen = Select::with_theme(&ColorfulTheme::default())
+                .with_prompt("open with")
+                .items(&labels)
+                .default(default_idx)
+                .interact_on(term)?;
+
+            let editor = &installed[chosen];
+            prefs.set_last_editor(project_path, editor.binary)?;
+
+            Ok(editor.binary.to_owned())
+        }
+    }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/// A "group folder" is a directory whose immediate children all share
-/// its own name as a prefix, e.g.:
-///   drivetrack/
-///     drivetrack-api/
-///     drivetrack-web/
-///
-/// Heuristic: ≥1 child dir starts with `parent_name + '-'` or `parent_name + '_'`
 fn is_group_folder(path: &Path) -> bool {
     let parent_name = match path.file_name() {
         Some(n) => n.to_string_lossy().to_lowercase(),
-        None    => return false,
+        None => return false,
     };
     std::fs::read_dir(path)
         .map(|rd| {
@@ -149,7 +170,6 @@ fn is_group_folder(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Use `z` (zoxide) if available, else `cd`
 fn detect_cd() -> &'static str {
     std::process::Command::new("zoxide")
         .arg("--version")
@@ -161,7 +181,7 @@ fn detect_cd() -> &'static str {
         .unwrap_or("cd")
 }
 
-/// POSIX single-quote escaping
 fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
+

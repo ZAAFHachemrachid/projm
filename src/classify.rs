@@ -120,7 +120,6 @@ pub fn classify(path: &Path) -> Category {
         match suffix {
             "fw"                        => return Category::Embedded,
             "mob" | "mobile"            => return Category::Ui,
-            "desk" | "desktop"          => return Category::Apps,
             "web" | "ui"                => return Category::Ui,
             "api" | "core" | "backend"
             | "server"                  => {
@@ -156,6 +155,7 @@ pub fn classify(path: &Path) -> Category {
         }
         return Category::Tools;
     }
+
 
     // ── Pure JS/TS: read package.json to know the truth ─────────────────────
     if has_pkg && !has_cargo {

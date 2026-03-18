@@ -2,6 +2,8 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
+![version](https://img.shields.io/badge/version-0.2.0-orange)
+
 ## Install
 
 ```bash
@@ -33,6 +35,9 @@ pg
 
 # Override the default base directory (~/projects)
 projm set-base ~/code
+
+# List detected editors on this machine
+projm editors
 ```
 
 ## How it works
@@ -106,15 +111,37 @@ projm organize ~/projects
 
 `pg` calls `projm g` internally. All interactive UI writes to stderr, only the final shell command goes to stdout for `eval`. Uses `z` (zoxide) if available, falls back to `cd`.
 
-Only editors that are actually installed appear in the picker. Last choice is remembered per-project.
+```
+  apps      drivetrack-api        main  ✓
+  apps      drivetrack-web        feat/auth  *
+  ml        trashnet              main  ✓
+  embedded  rocket-telemetry-fw   dev  *
+  ui        pioneers-website      main  ✓
+```
 
-```
-  apps      drivetrack-api
-  apps      drivetrack-web
-  ml        trashnet
-  embedded  rocket-telemetry-fw
-  ui        pioneers-website
-```
+### Editor detection
+
+projm scans `$PATH` at runtime — only editors that are actually installed appear in the picker. The list of editors it knows about:
+
+| Binary   | Name     |
+| -------- | -------- |
+| `nvim`   | Neovim   |
+| `zed`    | Zed      |
+| `code`   | VS Code  |
+| `kiro`   | Kiro     |
+| `hx`     | Helix    |
+| `idea`   | IntelliJ |
+| `cursor` | Cursor   |
+| `emacs`  | Emacs    |
+| `vim`    | Vim      |
+
+**Selection behaviour:**
+
+- **0 found** → error with install hint
+- **1 found** → opens directly, no picker shown
+- **2+ found** → interactive picker, last choice pre-selected
+
+Last choice is remembered per-project in `~/.config/projm/prefs.json`. Run `projm editors` to see what's detected on your machine.
 
 ## Directory structure
 
@@ -133,32 +160,25 @@ Only editors that are actually installed appear in the picker. Last choice is re
 
 ## Roadmap
 
-### v0.2 — Auto-detect editors
+### ~~v0.2 — Auto-detect editors~~ ✓ shipped
 
-Scan installed binaries at runtime instead of a hardcoded list:
-
-```rust
-const KNOWN_EDITORS: &[(&str, &str)] = &[
-    ("nvim",        "Neovim"),
-    ("zed",         "Zed"),
-    ("code",        "VS Code"),
-    ("kiro",        "Kiro"),
-    ("antigravity", "Antigravity"),
-    ("hx",          "Helix"),
-    ("idea",        "IntelliJ"),
-    ("cursor",      "Cursor"),
-    ("emacs",       "Emacs"),
-    ("vim",         "Vim"),
-];
-```
-
-- Only show editors that are actually installed
-- Remember last choice per-project in `~/.config/projm/prefs.json`
-- If only one editor found → skip the picker, open directly
+Editor detection, single-editor fast path, and per-project last-choice memory are all live. See [Editor detection](#editor-detection) above.
 
 ---
 
-### v0.3 — Auto-install & setup zoxide
+### v0.3 — Shell completions + zoxide setup
+
+**Shell completions**
+
+Generated via Clap at build time for zsh, bash, and fish:
+
+```bash
+projm completions zsh >> ~/.config/zsh/completions/_projm
+```
+
+Completions cover all subcommands and flags. `projm init` installs them automatically alongside the shell function.
+
+**Auto-install & setup zoxide**
 
 When `projm init` runs, detect and handle zoxide automatically:
 
@@ -183,49 +203,7 @@ Appends `eval "$(zoxide init zsh)"` to `.zshrc` if not already present. Fully id
 
 ---
 
-### v0.4 — Custom filters
-
-User-defined rules in `~/.config/projm/rules.toml`, evaluated before built-in logic:
-
-```toml
-# Rules are evaluated top to bottom, first match wins
-
-[[rule]]
-name     = "pioneers-website"  # exact name match
-category = "ui"
-
-[[rule]]
-marker   = "rocket.toml"       # file presence
-category = "services"
-
-[[rule]]
-name_contains = "adrar"        # substring match
-category      = "labs"
-
-[[rule]]
-suffix   = "fw"                # override built-in suffix behaviour
-category = "embedded"
-
-[[rule]]
-has_dep  = "burn"              # Cargo.toml dep → Rust ML
-category = "ml"
-
-[[rule]]
-has_dep  = "tensorflow"        # package.json or requirements.txt dep
-category = "ml"
-```
-
-Evaluation order:
-
-```
-1. doc-lab.md       ← always first, hard override
-2. rules.toml       ← your custom rules
-3. built-in logic   ← everything else
-```
-
----
-
-### v0.5 — `projm new`
+### v0.4 — `projm new` + package manager detection
 
 Scaffold a new project directly into the right place:
 
@@ -250,11 +228,9 @@ Stack → init command mapping:
 | Python/uv | `uv init`                           |
 | Go        | `go mod init`                       |
 
----
+**Package manager detection**
 
-### v0.6 — Package manager auto-detection
-
-Detect the package manager from the lockfile present in the project root — no guessing from `package.json` scripts:
+The right install command is determined from the lockfile in the project root — no guessing from `package.json` scripts:
 
 | Lockfile                            | Package manager    |
 | ----------------------------------- | ------------------ |
@@ -274,11 +250,54 @@ Detect the package manager from the lockfile present in the project root — no 
 | `Gemfile.lock`                      | bundler (Ruby)     |
 | `composer.lock`                     | composer (PHP)     |
 
-Used in `projm new` to run the right install command, and shown in `projm g` as project metadata.
+Also shown in `projm g` as project metadata.
 
 ---
 
-### v0.7 — Universal language support
+### v0.5 — Custom classification rules
+
+User-defined rules in `~/.config/projm/rules.toml`, evaluated before built-in logic:
+
+```toml
+# Rules are evaluated top to bottom, first match wins
+
+[[rule]]
+name     = "pioneers-website"  # exact name match
+category = "ui"
+
+[[rule]]
+marker   = "rocket.toml"       # file presence (replaces the doc-lab.md hard override)
+category = "services"
+
+[[rule]]
+name_contains = "adrar"        # substring match
+category      = "labs"
+
+[[rule]]
+suffix   = "fw"                # override built-in suffix behaviour
+category = "embedded"
+
+[[rule]]
+has_dep  = "burn"              # Cargo.toml dep → Rust ML
+category = "ml"
+
+[[rule]]
+has_dep  = "tensorflow"        # package.json or requirements.txt dep
+category = "ml"
+```
+
+Evaluation order:
+
+```
+1. rules.toml       ← your custom rules (highest priority)
+2. built-in logic   ← everything else
+```
+
+> **Tip:** `doc-lab.md` is just a built-in rule. You can replicate its behaviour for any marker via `marker = "doc-lab.md"` with the highest position in your rules file.
+
+---
+
+### v0.6 — Universal language support
 
 Extend classification to cover every major stack:
 
@@ -295,22 +314,54 @@ Extend classification to cover every major stack:
 | `composer.json` + `artisan`            | Laravel / PHP             | `services`           |
 | `mix.exs`                              | Elixir / Phoenix          | `services`           |
 | `*.csproj` / `*.sln`                   | C# / .NET                 | `services` / `apps`  |
-| `CMakeLists.txt` / `*.cmake`           | C / C++                   | `tools` / `embedded` |
+| `CMakeLists.txt` + `.ld` / `openocd`   | C / C++ embedded          | `embedded`           |
+| `CMakeLists.txt` only                  | C / C++ native app or lib | `tools`              |
 
 All new stacks respect the same grouping rules — `myapp-android` and `myapp-ios` will group under `myapp/`.
 
 ---
 
+### v0.7 — `projm run`
+
+Detect and execute the project's dev command without leaving projm:
+
+```bash
+projm run
+# reads lockfile → infers package manager
+# reads package.json scripts / Cargo.toml / pyproject.toml
+# → picks the right dev command and runs it
+```
+
+Dev command resolution per stack:
+
+| Stack       | Command                     |
+| ----------- | --------------------------- |
+| Rust binary | `cargo run`                 |
+| Hono/TS     | `bun dev` / `pnpm dev`      |
+| React/Vite  | `bun dev` / `pnpm dev`      |
+| Tauri       | `pnpm tauri dev`            |
+| Flutter     | `flutter run`               |
+| Python/uv   | `uv run` / `python main.py` |
+| Go          | `go run .`                  |
+
+Pairs naturally with `pg` — jump to a project and optionally start it in one step:
+
+```bash
+pg --run
+```
+
+---
+
 ### Summary
 
-| Version | Feature                                                                   |
-| ------- | ------------------------------------------------------------------------- |
-| v0.2    | Auto-detect installed editors + remember last choice                      |
-| v0.3    | Auto-install zoxide + detect system package manager                       |
-| v0.4    | `rules.toml` custom classification                                        |
-| v0.5    | `projm new` scaffold into correct group                                   |
-| v0.6    | Package manager detection from lockfile                                   |
-| v0.7    | Universal language support (Flutter, Kotlin, Go, Swift, Java, Ruby, PHP…) |
+| Version | Feature                                                          | Status    |
+| ------- | ---------------------------------------------------------------- | --------- |
+| v0.2    | Auto-detect installed editors + remember last choice             | ✓ shipped |
+| v0.3    | Shell completions (zsh/bash/fish) + auto-install zoxide          | planned   |
+| v0.4    | `projm new` scaffold + package manager detection from lockfile   | planned   |
+| v0.5    | `rules.toml` custom classification                               | planned   |
+| v0.6    | Universal language support (Flutter, Kotlin, Go, Swift, Java, …) | planned   |
+| v0.7    | `projm run` — detect and launch the project's dev command        | planned   |
 
 ---
 
