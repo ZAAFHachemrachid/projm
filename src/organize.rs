@@ -14,10 +14,10 @@ use std::{
 // ── Plan entry ────────────────────────────────────────────────────────────────
 
 struct Move {
-    src:   PathBuf,
-    dest:  PathBuf,        // full destination, keeps original name
-    cat:   Category,
-    name:  String,
+    src: PathBuf,
+    dest: PathBuf, // full destination, keeps original name
+    cat: Category,
+    name: String,
     group: Option<String>, // Some("drivetrack") when grouped
 }
 
@@ -32,15 +32,16 @@ pub fn run(dir: &Path, dry_run: bool) -> Result<()> {
     }
 
     if dry_run {
-        term.write_line(&format!("\n  {}", "[dry-run] nothing will be moved".dimmed()))?;
+        term.write_line(&format!(
+            "\n  {}",
+            "[dry-run] nothing will be moved".dimmed()
+        ))?;
     }
 
     // ── Collect immediate subdirectories ──────────────────────────────────────
     let mut raw: Vec<_> = std::fs::read_dir(dir)?
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path().is_dir() && !e.file_name().to_string_lossy().starts_with('.')
-        })
+        .filter(|e| e.path().is_dir() && !e.file_name().to_string_lossy().starts_with('.'))
         .collect();
     raw.sort_by_key(|e| e.file_name());
 
@@ -53,9 +54,9 @@ pub fn run(dir: &Path, dry_run: bool) -> Result<()> {
     let classified: Vec<(PathBuf, String, Category)> = raw
         .iter()
         .map(|e| {
-            let src  = e.path();
+            let src = e.path();
             let name = e.file_name().to_string_lossy().to_string();
-            let cat  = classify::classify(&src);
+            let cat = classify::classify(&src);
             (src, name, cat)
         })
         .collect();
@@ -74,7 +75,13 @@ pub fn run(dir: &Path, dry_run: bool) -> Result<()> {
         .into_iter()
         .map(|(src, name, cat)| {
             let (dest, group) = resolve_dest(&base, &name, &cat, &prefix_count);
-            Move { src, dest, cat, name, group }
+            Move {
+                src,
+                dest,
+                cat,
+                name,
+                group,
+            }
         })
         .collect();
 
@@ -184,7 +191,7 @@ pub fn run(dir: &Path, dry_run: bool) -> Result<()> {
 ///
 /// `trashnet`  (no known suffix)
 ///   → `base/ml/trashnet`
-fn resolve_dest(
+pub fn resolve_dest(
     base: &Path,
     name: &str,
     cat: &Category,
@@ -194,8 +201,8 @@ fn resolve_dest(
         if prefix_count.get(prefix).copied().unwrap_or(0) >= 2 {
             let dest = base
                 .join(cat.dir_name())
-                .join(prefix)  // group folder — just the prefix, e.g. "drivetrack"
-                .join(name);   // full original name kept, e.g. "drivetrack-api"
+                .join(prefix) // group folder — just the prefix, e.g. "drivetrack"
+                .join(name); // full original name kept, e.g. "drivetrack-api"
             return (dest, Some(prefix.to_string()));
         }
     }

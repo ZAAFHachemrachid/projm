@@ -15,33 +15,52 @@ pub struct Prefs {
 }
 
 impl Prefs {
+    // ── Production API (uses XDG path) ────────────────────────────────────────
+
     pub fn load() -> Result<Self> {
-        let p = path()?;
-        if !p.exists() {
-            return Ok(Self::default());
-        }
-        let raw = fs::read_to_string(&p).with_context(|| format!("reading {}", p.display()))?;
-        serde_json::from_str(&raw).with_context(|| format!("parsing {}", p.display()))
+        Ok(Self::load_from(default_path()?))
     }
 
     pub fn save(&self) -> Result<()> {
-        let p = path()?;
-        if let Some(parent) = p.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(&p, serde_json::to_string_pretty(self)?)
-            .with_context(|| format!("writing {}", p.display()))
+        self.save_to(&default_path()?)
     }
 
-    /// Last editor binary used for this project, if any.
     pub fn last_editor_for(&self, project: &Path) -> Option<&str> {
         self.last_editor.get(&key(project)).map(String::as_str)
     }
 
-    /// Persist the choice.
     pub fn set_last_editor(&mut self, project: &Path, binary: &str) -> Result<()> {
+        self.set_last_editor_at(&default_path()?, project, binary)
+    }
+
+    // ── Testable variants (explicit path) ─────────────────────────────────────
+
+    pub fn load_from(path: PathBuf) -> Self {
+        if !path.exists() {
+            return Self::default();
+        }
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    }
+
+    pub fn save_to(&self, path: &PathBuf) -> Result<()> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, serde_json::to_string_pretty(self)?)
+            .with_context(|| format!("writing {}", path.display()))
+    }
+
+    pub fn set_last_editor_at(
+        &mut self,
+        path: &PathBuf,
+        project: &Path,
+        binary: &str,
+    ) -> Result<()> {
         self.last_editor.insert(key(project), binary.to_owned());
-        self.save()
+        self.save_to(path)
     }
 }
 
@@ -53,7 +72,7 @@ fn key(project: &Path) -> String {
         .into_owned()
 }
 
-fn path() -> Result<PathBuf> {
+fn default_path() -> Result<PathBuf> {
     Ok(dirs::config_dir()
         .context("cannot resolve XDG config dir")?
         .join("projm/prefs.json"))
