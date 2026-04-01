@@ -2,7 +2,7 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
-![version](https://img.shields.io/badge/version-0.2.0-orange)
+![version](https://img.shields.io/badge/version-0.3.0-orange)
 
 ## Install
 
@@ -38,6 +38,13 @@ projm set-base ~/code
 
 # List detected editors on this machine
 projm editors
+
+# Generate shell completions
+projm completions zsh
+projm completions powershell
+
+# Install shell integration + zoxide + completions
+projm init
 ```
 
 ## How it works
@@ -166,28 +173,29 @@ Editor detection, single-editor fast path, and per-project last-choice memory ar
 
 ---
 
-### v0.3 — Shell completions + zoxide setup
+### ~~v0.3 — Shell completions + zoxide setup~~ ✓ shipped
 
 **Shell completions**
 
-Generated via Clap at build time for zsh, bash, and fish:
+Generated via Clap for zsh, bash, fish, and PowerShell:
 
 ```bash
 projm completions zsh >> ~/.config/zsh/completions/_projm
+projm completions powershell > ~/.config/powershell/completions/projm.ps1
 ```
 
-Completions cover all subcommands and flags. `projm init` installs them automatically alongside the shell function.
+Completions cover all subcommands and flags. `projm init` installs platform-specific completions automatically.
 
 **Auto-install & setup zoxide**
 
-When `projm init` runs, detect and handle zoxide automatically:
+When `projm init` runs, it checks zoxide and handles install automatically if missing:
 
 ```
-[1/3] checking zoxide... not found
-[2/3] installing zoxide via pacman -S zoxide
-[3/3] writing eval to ~/.config/zsh/.zshrc
+[1/3] checking zoxide...
+[2/3] writing completions...
+[3/3] updating ~/.zshrc...
 
-  done. restart your shell or: source ~/.config/zsh/.zshrc
+  done. restart your shell or source ~/.zshrc
 ```
 
 Package manager detection order (system-native preferred over cargo):
@@ -197,9 +205,10 @@ Package manager detection order (system-native preferred over cargo):
 | Arch Linux    | `pacman` → `yay` → `paru` → `cargo` |
 | Ubuntu/Debian | `apt` → `cargo`                     |
 | macOS         | `brew` → `cargo`                    |
+| Windows       | `winget` → `choco` → `scoop` → `cargo` |
 | Fallback      | `cargo install zoxide`              |
 
-Appends `eval "$(zoxide init zsh)"` to `.zshrc` if not already present. Fully idempotent.
+On Linux/macOS, `init` updates `~/.zshrc` with zsh integration and `eval "$(zoxide init zsh)"` (idempotent). On Windows, `init` updates `~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` with PowerShell integration and `zoxide init powershell` (idempotent).
 
 ---
 
@@ -357,7 +366,7 @@ pg --run
 | Version | Feature                                                          | Status    |
 | ------- | ---------------------------------------------------------------- | --------- |
 | v0.2    | Auto-detect installed editors + remember last choice             | ✓ shipped |
-| v0.3    | Shell completions (zsh/bash/fish) + auto-install zoxide          | planned   |
+| v0.3    | Shell completions (zsh/bash/fish/powershell) + auto-install zoxide | ✓ shipped |
 | v0.4    | `projm new` scaffold + package manager detection from lockfile   | planned   |
 | v0.5    | `rules.toml` custom classification                               | planned   |
 | v0.6    | Universal language support (Flutter, Kotlin, Go, Swift, Java, …) | planned   |

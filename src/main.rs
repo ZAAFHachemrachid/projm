@@ -1,75 +1,31 @@
 mod classify;
+mod completions;
 mod config;
 mod editors;
 mod go;
+mod init_setup;
+mod main_cli;
 mod organize;
 mod prefs;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use colored::Colorize;
-use std::path::PathBuf;
-
-#[derive(Parser)]
-#[command(
-    name = "projm",
-    about = "Project organizer & navigator",
-    version = "0.2.0"
-)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Scan a directory and move projects into ~/projects/<category>/
-    Organize {
-        /// Directory to scan
-        dir: PathBuf,
-        /// Preview only — no files moved
-        #[arg(short = 'n', long)]
-        dry_run: bool,
-    },
-    /// Fuzzy-pick a project and jump to it  (wrap with `eval` in shell)
-    G,
-    /// Print the shell function to add to ~/.zshrc
-    Init,
-    /// Override the base projects directory (default: ~/projects)
-    SetBase { path: PathBuf },
-    /// List detected editors on this machine
-    Editors,
-}
+use main_cli::{Cli, Commands};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Organize { dir, dry_run } => organize::run(&dir, dry_run),
         Commands::G => go::run(),
-        Commands::Init => {
-            print_init();
-            Ok(())
-        }
+        Commands::Init => init_setup::run(),
+        Commands::Completions { shell } => completions::emit(shell),
         Commands::SetBase { path } => config::set_base(&path),
         Commands::Editors => {
             print_editors();
             Ok(())
         }
     }
-}
-
-fn print_init() {
-    print!(
-        r#"# ─── projm shell integration ─────────────────────────────
-# Paste into ~/.zshrc (or source this file directly)
-pg() {{
-    local cmd
-    cmd=$(projm g 2>/dev/tty) || return
-    [ -n "$cmd" ] && eval "$cmd"
-}}
-# ───────────────────────────────────────────────────────────
-"#
-    );
 }
 
 fn print_editors() {

@@ -1,6 +1,6 @@
 [package]
 name = "projm"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/ZAAFHachemrachid/projm"
@@ -21,6 +21,7 @@ path = "src/lib.rs"
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
 colored = "3.1.1"
 console = "0.16.3"
 dialoguer = { version = "0.12.0", features = ["fuzzy-select"] }
