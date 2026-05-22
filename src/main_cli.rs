@@ -8,7 +8,7 @@ use crate::completions::CompletionShell;
 #[command(
     name = "projm",
     about = "Project organizer & navigator",
-    version = "0.3.1"
+    version = env!("CARGO_PKG_VERSION")
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -56,6 +56,18 @@ pub enum BlueprintSubcommands {
     /// Run a blueprint to create a new project
     Run {
         /// Optional name of the blueprint to run
+        name: Option<String>,
+    },
+    /// Edit an existing blueprint
+    #[command(alias = "update")]
+    Edit {
+        /// Optional name of the blueprint to edit
+        name: Option<String>,
+    },
+    /// Delete an existing blueprint
+    #[command(alias = "rm", alias = "remove")]
+    Delete {
+        /// Optional name of the blueprint to delete
         name: Option<String>,
     },
 }

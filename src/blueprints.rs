@@ -55,6 +55,8 @@ pub fn run(sub: Option<BlueprintSubcommands>) -> Result<()> {
         Some(BlueprintSubcommands::Add) => add()?,
         Some(BlueprintSubcommands::List) => list()?,
         Some(BlueprintSubcommands::Run { name }) => run_blueprint(name)?,
+        Some(BlueprintSubcommands::Edit { name }) => edit(name)?,
+        Some(BlueprintSubcommands::Delete { name }) => delete(name)?,
         None => run_blueprint(None)?,
     }
     Ok(())
@@ -267,6 +269,159 @@ fn run_blueprint(name: Option<String>) -> Result<()> {
             println!();
         }
     }
+
+    Ok(())
+}
+
+fn delete(name: Option<String>) -> Result<()> {
+    use dialoguer::{theme::ColorfulTheme, Confirm, Select};
+
+    let theme = ColorfulTheme::default();
+    let mut store = BlueprintsStore::load()?;
+
+    if store.blueprints.is_empty() {
+        println!();
+        println!("  No blueprints saved yet. Run `projm blueprint add` to save one.");
+        println!();
+        return Ok(());
+    }
+
+    // Resolve which blueprint to delete
+    let blueprint_name = match name {
+        Some(n) => {
+            if !store.blueprints.iter().any(|b| b.name == n) {
+                println!("  {} Blueprint '{}' not found.", "✗".red(), n);
+                return Ok(());
+            }
+            n
+        }
+        None => {
+            let items: Vec<String> = store
+                .blueprints
+                .iter()
+                .map(|b| format!("{}  ({})", b.name.bold(), b.command.dimmed()))
+                .collect();
+
+            let selection = Select::with_theme(&theme)
+                .with_prompt("Choose a blueprint to delete")
+                .items(&items)
+                .default(0)
+                .interact()?;
+            store.blueprints[selection].name.clone()
+        }
+    };
+
+    println!();
+    let ok = Confirm::with_theme(&theme)
+        .with_prompt(format!("Are you sure you want to delete blueprint '{}'?", blueprint_name.cyan()))
+        .default(false)
+        .interact()?;
+
+    if ok {
+        store.blueprints.retain(|b| b.name != blueprint_name);
+        store.save()?;
+        println!();
+        println!("  {} Blueprint '{}' deleted successfully!", "✓".green(), blueprint_name.bold());
+        println!();
+    } else {
+        println!();
+        println!("  {} Deletion aborted.", "✗".red());
+        println!();
+    }
+
+    Ok(())
+}
+
+fn edit(name: Option<String>) -> Result<()> {
+    use dialoguer::{theme::ColorfulTheme, Input, Select};
+
+    let theme = ColorfulTheme::default();
+    let mut store = BlueprintsStore::load()?;
+
+    if store.blueprints.is_empty() {
+        println!();
+        println!("  No blueprints saved yet. Run `projm blueprint add` to save one.");
+        println!();
+        return Ok(());
+    }
+
+    // Resolve which blueprint to edit
+    let index = match name {
+        Some(ref n) => {
+            match store.blueprints.iter().position(|b| b.name == *n) {
+                Some(idx) => idx,
+                None => {
+                    println!("  {} Blueprint '{}' not found.", "✗".red(), n);
+                    return Ok(());
+                }
+            }
+        }
+        None => {
+            let items: Vec<String> = store
+                .blueprints
+                .iter()
+                .map(|b| format!("{}  ({})", b.name.bold(), b.command.dimmed()))
+                .collect();
+
+            Select::with_theme(&theme)
+                .with_prompt("Choose a blueprint to edit")
+                .items(&items)
+                .default(0)
+                .interact()?
+        }
+    };
+
+    let old_name = store.blueprints[index].name.clone();
+    let old_command = store.blueprints[index].command.clone();
+
+    println!();
+    println!("{}", format!("  ✨ Edit Blueprint: {} ✨", old_name.bold()).cyan());
+    println!();
+
+    let new_name: String = Input::with_theme(&theme)
+        .with_prompt("Blueprint Name")
+        .with_initial_text(old_name.clone())
+        .validate_with(|input: &String| -> Result<(), &str> {
+            if input.trim().is_empty() {
+                return Err("Name cannot be empty.");
+            }
+            if !input
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+            {
+                return Err("Name must be alphanumeric, dashes, or underscores.");
+            }
+            Ok(())
+        })
+        .interact()?;
+
+    // Check conflict if name changed
+    if new_name != old_name && store.blueprints.iter().any(|b| b.name == new_name) {
+        println!("  {} Blueprint '{}' already exists.", "✗".red(), new_name);
+        return Ok(());
+    }
+
+    let new_command: String = Input::with_theme(&theme)
+        .with_prompt("Command Template")
+        .with_initial_text(old_command)
+        .validate_with(|input: &String| -> Result<(), &str> {
+            if input.trim().is_empty() {
+                return Err("Command cannot be empty.");
+            }
+            if !input.contains("{name}") {
+                return Err("Command must contain '{name}' placeholder.");
+            }
+            Ok(())
+        })
+        .interact()?;
+
+    store.blueprints[index].name = new_name.clone();
+    store.blueprints[index].command = new_command;
+    store.save()?;
+
+    println!();
+    println!("  {} Blueprint '{}' updated successfully!", "✓".green(), new_name.bold());
+    println!();
 
     Ok(())
 }
