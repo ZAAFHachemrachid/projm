@@ -2,9 +2,24 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
-![version](https://img.shields.io/badge/version-0.3.1-orange)
+![version](https://img.shields.io/badge/version-0.4.0-orange)
 
 ## Install
+
+### 1. Pre-compiled Binaries (Recommended)
+
+You can download pre-compiled binaries directly from [GitHub Releases](https://github.com/ZAAFHachemrachid/projm/releases) for Linux, macOS, and Windows.
+
+For an automated, fast cross-platform binary installation (without needing to compile from source), install **`cargo-binstall`** and run:
+
+```bash
+cargo install cargo-binstall
+cargo binstall projm
+```
+
+### 2. From Source
+
+If you have the Rust toolchain installed, you can build and install `projm` directly from crates.io:
 
 ```bash
 cargo install projm
