@@ -2,7 +2,7 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
-![version](https://img.shields.io/badge/version-0.5.0-orange)
+![version](https://img.shields.io/badge/version-0.6.0-orange)
 
 ## Install
 
@@ -101,6 +101,13 @@ Projects are classified by inspecting their contents:
 | Everything else                                           | `labs`                |
 
 `package.json` projects are classified by reading actual dependencies — React/Vite/Svelte → `ui`, Hono/Express/Prisma → `services`, both → `apps`.
+
+### Adding support for new languages
+
+Support for new language stacks is added directly in `src/classify.rs`. To add another stack:
+1. **Identify the unique stack markers** (e.g. `mix.exs` for Elixir, `composer.json` for PHP).
+2. **Add classification check** in the sequential `classify()` flow. If the stack can map to multiple categories, define helper functions for extra validation (e.g. `has_android_manifest()` or checking for subdirectories like `android/` and `ios/`).
+3. **Verify with tests** by adding unit test cases to `tests/classify_tests.rs` matching your stack.
 
 ### Package manager detection
 
@@ -336,7 +343,7 @@ Evaluation order:
 
 ---
 
-### v0.6 — Universal language support
+### ~~v0.6 — Universal language support~~ ✓ shipped
 
 Extend classification to cover every major stack:
 
@@ -400,7 +407,7 @@ pg --run
 | v0.3.2  | Interactive blueprints (`projm blueprint`) + auto-organization   | ✓ shipped |
 | v0.4    | `projm check` Environment diagnostics and doctor mode           | ✓ shipped |
 | v0.5    | `rules.toml` custom classification                               | ✓ shipped |
-| v0.6    | Universal language support (Flutter, Kotlin, Go, Swift, Java, …) | planned   |
+| v0.6    | Universal language support (Flutter, Kotlin, Go, Swift, Java, …) | ✓ shipped |
 | v0.7    | `projm run` — detect and launch the project's dev command        | planned   |
 
 ---

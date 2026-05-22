@@ -259,6 +259,107 @@ fn classify_readme_only_is_labs() {
     assert_eq!(classify(dir.path()), Category::Labs);
 }
 
+// ── classify: universal language support ─────────────────────────────────────
+
+#[test]
+fn classify_flutter_app() {
+    let dir = project(&["pubspec.yaml", "android/build.gradle"]);
+    assert_eq!(classify(dir.path()), Category::Apps);
+
+    let dir_ios = project(&["pubspec.yaml", "ios/Runner.xcworkspace"]);
+    assert_eq!(classify(dir_ios.path()), Category::Apps);
+}
+
+#[test]
+fn classify_dart_package() {
+    let dir = project(&["pubspec.yaml"]);
+    assert_eq!(classify(dir.path()), Category::Ui);
+}
+
+#[test]
+fn classify_kotlin_android() {
+    let dir = project(&["build.gradle", "src/main/AndroidManifest.xml"]);
+    assert_eq!(classify(dir.path()), Category::Apps);
+
+    let dir_kts = project(&["build.gradle.kts", "app/src/main/AndroidManifest.xml"]);
+    assert_eq!(classify(dir_kts.path()), Category::Apps);
+}
+
+#[test]
+fn classify_spring_boot_gradle() {
+    let dir = project(&["build.gradle"]);
+    assert_eq!(classify(dir.path()), Category::Services);
+
+    let dir_kts = project(&["build.gradle.kts"]);
+    assert_eq!(classify(dir_kts.path()), Category::Services);
+}
+
+#[test]
+fn classify_java_maven() {
+    let dir = project(&["pom.xml"]);
+    assert_eq!(classify(dir.path()), Category::Services);
+}
+
+#[test]
+fn classify_swift_project() {
+    let dir = project(&["Package.swift"]);
+    assert_eq!(classify(dir.path()), Category::Apps);
+
+    let dir_xcodeproj = project(&["App.xcodeproj/project.pbxproj"]);
+    assert_eq!(classify(dir_xcodeproj.path()), Category::Apps);
+}
+
+#[test]
+fn classify_go_projects() {
+    let (_root, dir_service) = named_project("my-go-service", &["go.mod"]);
+    assert_eq!(classify(&dir_service), Category::Services);
+
+    let (_root, dir_cli) = named_project("my-go-cli", &["go.mod"]);
+    assert_eq!(classify(&dir_cli), Category::Tools);
+}
+
+#[test]
+fn classify_ruby_on_rails() {
+    let dir = project(&["Gemfile", "config/routes.rb"]);
+    assert_eq!(classify(dir.path()), Category::Services);
+}
+
+#[test]
+fn classify_laravel_php() {
+    let dir = project(&["composer.json", "artisan"]);
+    assert_eq!(classify(dir.path()), Category::Services);
+}
+
+#[test]
+fn classify_elixir_phoenix() {
+    let dir = project(&["mix.exs"]);
+    assert_eq!(classify(dir.path()), Category::Services);
+}
+
+#[test]
+fn classify_csharp_dotnet() {
+    let (_root, dir_app) = named_project("my-dotnet-app", &["MyProj.csproj"]);
+    assert_eq!(classify(&dir_app), Category::Apps);
+
+    let (_root, dir_service) = named_project("my-dotnet-service", &["MyProj.csproj"]);
+    assert_eq!(classify(&dir_service), Category::Services);
+}
+
+#[test]
+fn classify_c_cpp_embedded() {
+    let dir_ld = project(&["CMakeLists.txt", "linker.ld"]);
+    assert_eq!(classify(dir_ld.path()), Category::Embedded);
+
+    let dir_openocd = project(&["CMakeLists.txt", "openocd.cfg"]);
+    assert_eq!(classify(dir_openocd.path()), Category::Embedded);
+}
+
+#[test]
+fn classify_c_cpp_native() {
+    let dir = project(&["CMakeLists.txt"]);
+    assert_eq!(classify(dir.path()), Category::Tools);
+}
+
 // ── Category helpers ──────────────────────────────────────────────────────────
 
 #[test]

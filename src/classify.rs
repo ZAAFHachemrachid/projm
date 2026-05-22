@@ -147,14 +147,86 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
         }
     }
 
-    // ── Embedded: memory.x, openocd, or Cargo cross-compile target ──────────
-    if has_mem_x || has_openocd || is_embedded_cargo(path) {
+    // ── Embedded: memory.x, openocd, Cargo cross-compile target, or C/C++ embedded ──────────
+    if has_mem_x || has_openocd || is_embedded_cargo(path) || is_c_cpp_embedded(path) {
         return Category::Embedded;
     }
 
     // ── Full-stack / Tauri desktop app ───────────────────────────────────────
     if has_tauri || (has_cargo && has_pkg) {
         return Category::Apps;
+    }
+
+    // ── Flutter / Dart ───────────────────────────────────────────────────────
+    if has("pubspec.yaml") {
+        if path.join("android").exists() || path.join("ios").exists() {
+            return Category::Apps;
+        }
+        return Category::Ui;
+    }
+
+    // ── Kotlin / Android & Spring Boot ───────────────────────────────────────
+    if has("build.gradle") || has("build.gradle.kts") {
+        if has_android_manifest(path) {
+            return Category::Apps;
+        }
+        return Category::Services;
+    }
+
+    // ── Java / Maven ─────────────────────────────────────────────────────────
+    if has("pom.xml") {
+        return Category::Services;
+    }
+
+    // ── Swift / iOS / macOS ──────────────────────────────────────────────────
+    if has_ext(path, "xcodeproj") || has("Package.swift") {
+        return Category::Apps;
+    }
+
+    // ── Go ───────────────────────────────────────────────────────────────────
+    if has("go.mod") {
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
+        if name.contains("cli") || name.contains("tool") || name.contains("util") {
+            return Category::Tools;
+        }
+        return Category::Services;
+    }
+
+    // ── Ruby on Rails ────────────────────────────────────────────────────────
+    if has("Gemfile") && path.join("config/routes.rb").exists() {
+        return Category::Services;
+    }
+
+    // ── Laravel / PHP ────────────────────────────────────────────────────────
+    if has("composer.json") && has("artisan") {
+        return Category::Services;
+    }
+
+    // ── Elixir / Phoenix ─────────────────────────────────────────────────────
+    if has("mix.exs") {
+        return Category::Services;
+    }
+
+    // ── C# / .NET ────────────────────────────────────────────────────────────
+    if has_ext(path, "csproj") || has_ext(path, "sln") {
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
+        if name.contains("app") || name.contains("ui") || name.contains("desktop") || name.contains("mobile") {
+            return Category::Apps;
+        }
+        return Category::Services;
+    }
+
+    // ── C / C++ Native (Non-embedded) ────────────────────────────────────────
+    if has("CMakeLists.txt") {
+        return Category::Tools;
     }
 
     // ── Python: ML pipeline or tool ─────────────────────────────────────────
@@ -353,3 +425,48 @@ pub fn extract_dep_keys_helper(path: &Path) -> Vec<String> {
         Vec::new()
     }
 }
+
+fn is_c_cpp_embedded(path: &Path) -> bool {
+    if !path.join("CMakeLists.txt").exists() {
+        return false;
+    }
+    has_ext(path, "ld")
+        || path.join("openocd.cfg").exists()
+        || path.join("openocd").exists()
+}
+
+fn has_android_manifest(path: &Path) -> bool {
+    if path.join("src/main/AndroidManifest.xml").exists()
+        || path.join("app/src/main/AndroidManifest.xml").exists()
+        || path.join("AndroidManifest.xml").exists()
+    {
+        return true;
+    }
+    
+    // Depth-limited search (depth <= 4)
+    fn find_manifest(dir: &Path, depth: usize) -> bool {
+        if depth > 4 {
+            return false;
+        }
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                        if name == "target" || name == "node_modules" || name == ".git" || name == "build" {
+                            continue;
+                        }
+                    }
+                    if find_manifest(&p, depth + 1) {
+                        return true;
+                    }
+                } else if p.file_name().map_or(false, |n| n == "AndroidManifest.xml") {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+    find_manifest(path, 1)
+}
+
