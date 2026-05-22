@@ -64,3 +64,6 @@ _Avoid_: Branch name, git version
 A visual status icon (`✓` for clean or `*` for dirty/uncommitted changes) next to the **Git Branch Indicator** in the navigator prompt.
 _Avoid_: Repo status, changes tag
 
+**Environment Diagnostics / Environment Check**:
+A subcommand (`check`) that scans the local machine's `$PATH` to identify and verify the health, location, and versions of active compilers, runtimes, package managers, and system utilities.
+_Avoid_: System check, dependency test, system scan

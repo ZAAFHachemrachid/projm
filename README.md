@@ -45,6 +45,9 @@ projm completions powershell
 
 # Install shell integration + zoxide + completions
 projm init
+
+# Verify active development tools and environment health
+projm check
 ```
 
 ## How it works
@@ -149,6 +152,18 @@ projm scans `$PATH` at runtime — only editors that are actually installed appe
 - **2+ found** → interactive picker, last choice pre-selected
 
 Last choice is remembered per-project in `~/.config/projm/prefs.json`. Run `projm editors` to see what's detected on your machine.
+
+### Environment diagnostics
+
+`projm check` scans your active `$PATH` and runs diagnostics to check the health and version of your compilers, runtimes, package managers, and development utilities:
+
+- **Rust**: `cargo`, `rustc`, `rustup`
+- **Python**: `python`/`python3`, `pip`, `uv`, `pipx`
+- **Node/JS**: `node`, `npm`, `pnpm`, `yarn`, `bun`, `deno`
+- **Go**: `go`
+- **Systems/VCS**: `git`, `docker`, `docker-compose`, `curl`, `make`
+
+It performs smart cross-dependency validation (e.g. warning you if a package manager like `npm` is present but its runtime `node` is missing). Run `projm check` to see your environment status.
 
 ## Directory structure
 
