@@ -227,54 +227,39 @@ On Linux/macOS, `init` updates `~/.zshrc` with zsh integration and `eval "$(zoxi
 
 ---
 
-### v0.4 — `projm new` + package manager detection
+### ~~v0.3.2 — Interactive Project Blueprints~~ ✓ shipped
 
-Scaffold a new project directly into the right place:
+Save complex project creation commands with placeholders (e.g., `cargo new {name}`) and execute them interactively. After execution, `projm` prompts you to automatically run `organize` to move the new project into the correct category directory inside your **Base Directory**.
 
 ```bash
-projm new drivetrack-mobile
-# detects prefix "drivetrack" already in apps/drivetrack/
-# → creates ~/projects/apps/drivetrack/drivetrack-mobile/
-# → asks: stack? (rust / hono / react / tauri / flutter / uv)
-# → runs the right init command with the right package manager
-# → touches doc-lab.md if you pass --lab
+# Add a new blueprint interactively
+projm blueprint add
+
+# List all saved blueprints
+projm blueprint list
+
+# Run a blueprint to scaffold a new project
+projm blueprint run
 ```
 
-Stack → init command mapping:
+---
 
-| Stack     | Command                             |
-| --------- | ----------------------------------- |
-| Rust      | `cargo init`                        |
-| Hono/TS   | `pnpm create hono` (or detected pm) |
-| React     | `pnpm create vite`                  |
-| Tauri     | `pnpm create tauri-app`             |
-| Flutter   | `flutter create`                    |
-| Python/uv | `uv init`                           |
-| Go        | `go mod init`                       |
+### v0.4 — `projm check` (Environment Diagnostics)
 
-**Package manager detection**
+A diagnostic subcommand that scans the local machine's `$PATH` to identify and verify the health, location, and versions of active compilers, runtimes, package managers, and development utilities:
 
-The right install command is determined from the lockfile in the project root — no guessing from `package.json` scripts:
+- **Rust Toolchain**: `cargo`, `rustc`, `rustup`
+- **Python Toolchain**: `python`/`python3`, `pip`, `uv`, `pipx`
+- **Node/JS Toolchain**: `node`, `npm`, `pnpm`, `yarn`, `bun`, `deno`
+- **Go Toolchain**: `go`
+- **Systems & Utilities**: `git`, `docker`, `docker-compose`, `curl`, `make`
 
-| Lockfile                            | Package manager    |
-| ----------------------------------- | ------------------ |
-| `pnpm-lock.yaml`                    | pnpm               |
-| `bun.lockb` / `bun.lock`            | bun                |
-| `yarn.lock`                         | yarn               |
-| `package-lock.json`                 | npm                |
-| `uv.lock`                           | uv (Python)        |
-| `poetry.lock`                       | poetry             |
-| `Pipfile.lock`                      | pipenv             |
-| `requirements.txt`                  | pip                |
-| `Cargo.lock`                        | cargo              |
-| `go.sum`                            | go modules         |
-| `pubspec.lock`                      | pub (Dart/Flutter) |
-| `build.gradle` / `build.gradle.kts` | gradle             |
-| `pom.xml`                           | maven              |
-| `Gemfile.lock`                      | bundler (Ruby)     |
-| `composer.lock`                     | composer (PHP)     |
+It performs smart cross-dependency validation (e.g. warning you if a package manager like `npm` is present but its runtime `node` is missing).
 
-Also shown in `projm g` as project metadata.
+```bash
+# Run environment diagnostics
+projm check
+```
 
 ---
 
@@ -382,7 +367,8 @@ pg --run
 | ------- | ---------------------------------------------------------------- | --------- |
 | v0.2    | Auto-detect installed editors + remember last choice             | ✓ shipped |
 | v0.3    | Shell completions (zsh/bash/fish/powershell) + auto-install zoxide | ✓ shipped |
-| v0.4    | `projm new` scaffold + package manager detection from lockfile   | planned   |
+| v0.3.2  | Interactive blueprints (`projm blueprint`) + auto-organization   | ✓ shipped |
+| v0.4    | `projm check` Environment diagnostics and doctor mode           | planned   |
 | v0.5    | `rules.toml` custom classification                               | planned   |
 | v0.6    | Universal language support (Flutter, Kotlin, Go, Swift, Java, …) | planned   |
 | v0.7    | `projm run` — detect and launch the project's dev command        | planned   |
