@@ -133,3 +133,43 @@ fn dest_uses_correct_category_dir() {
         );
     }
 }
+
+#[test]
+fn test_organize_single_project() {
+    let tmp = tempfile::tempdir().unwrap();
+
+    // Set XDG_CONFIG_HOME to isolation directory
+    std::env::set_var("XDG_CONFIG_HOME", tmp.path());
+
+    let base_dir = tmp.path().join("my_base_projects");
+    let config_dir = tmp.path().join("projm");
+    std::fs::create_dir_all(&config_dir).unwrap();
+
+    // Write mock config.json
+    let config_content = format!(
+        r#"{{"base": "{}"}}"#,
+        base_dir.display().to_string().replace('\\', "\\\\")
+    );
+    std::fs::write(config_dir.join("config.json"), config_content).unwrap();
+
+    // Create a temporary source project directory
+    let src_project = tmp.path().join("my-web-app");
+    std::fs::create_dir_all(&src_project).unwrap();
+    // Add package.json with some react dependencies to classify as UI
+    std::fs::write(
+        src_project.join("package.json"),
+        r#"{"dependencies": {"react": "18.0.0"}}"#,
+    )
+    .unwrap();
+
+    // Run organize_single
+    let dest_path = projm::organize::organize_single(&src_project).unwrap();
+
+    // It should be moved to my_base_projects/ui/my-web-app
+    let expected_dest = base_dir.join("ui").join("my-web-app");
+    assert_eq!(dest_path, expected_dest);
+    assert!(expected_dest.exists());
+    assert!(expected_dest.join("package.json").exists());
+    assert!(!src_project.exists()); // Source should be moved
+}
+

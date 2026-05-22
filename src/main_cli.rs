@@ -38,5 +38,24 @@ pub enum Commands {
     SetBase { path: PathBuf },
     /// List detected editors on this machine
     Editors,
+    /// Manage and run project creation blueprints
+    Blueprint {
+        #[command(subcommand)]
+        sub: Option<BlueprintSubcommands>,
+    },
 }
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum BlueprintSubcommands {
+    /// Add a new blueprint interactively
+    Add,
+    /// List all saved blueprints
+    List,
+    /// Run a blueprint to create a new project
+    Run {
+        /// Optional name of the blueprint to run
+        name: Option<String>,
+    },
+}
+
 

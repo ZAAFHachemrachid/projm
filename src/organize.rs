@@ -235,3 +235,36 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     }
     Ok(())
 }
+
+pub fn organize_single(src: &Path) -> Result<PathBuf> {
+    let base = config::load().base;
+    if !src.exists() {
+        anyhow::bail!("Source directory does not exist: {}", src.display());
+    }
+    let name = src
+        .file_name()
+        .ok_or_else(|| anyhow::anyhow!("invalid directory path"))?
+        .to_string_lossy()
+        .to_string();
+    let cat = classify::classify(src);
+
+    // Resolve destination without grouping (empty prefix_count)
+    let prefix_count = HashMap::new();
+    let (dest, _) = resolve_dest(&base, &name, &cat, &prefix_count);
+
+    if src == dest {
+        return Ok(dest);
+    }
+
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    if dest.exists() {
+        anyhow::bail!("Destination directory already exists: {}", dest.display());
+    }
+
+    do_move(src, &dest)?;
+    Ok(dest)
+}
+

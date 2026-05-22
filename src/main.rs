@@ -7,6 +7,7 @@ mod init_setup;
 mod main_cli;
 mod organize;
 mod prefs;
+mod blueprints;
 
 use anyhow::Result;
 use clap::Parser;
@@ -25,8 +26,10 @@ fn main() -> Result<()> {
             print_editors();
             Ok(())
         }
+        Commands::Blueprint { sub } => blueprints::run(sub),
     }
 }
+
 
 fn print_editors() {
     let installed = editors::detect_installed();
