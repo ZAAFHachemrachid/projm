@@ -8,6 +8,7 @@ readme = "README.md"
 keywords = ["cli", "projects", "navigator", "developer-tools"]
 categories = ["command-line-utilities", "development-tools"]
 description = "Project organizer and fuzzy navigator for developers — classify, group, and jump to projects from the terminal"
+authors = ["Rachid Zaaf <[rachidzaaf9@gmailcom]>"]
 
 [package.metadata.wix]
 upgrade-guid = "A53BDBE1-3CAB-4F5F-85E0-65F2E6AF142C"
