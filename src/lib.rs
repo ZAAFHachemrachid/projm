@@ -7,6 +7,7 @@ pub mod completions;
 pub mod main_cli;
 pub mod blueprints;
 pub mod rules;
+pub mod clone;
 
 
 

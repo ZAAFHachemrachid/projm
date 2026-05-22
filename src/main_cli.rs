@@ -45,6 +45,19 @@ pub enum Commands {
     },
     /// Verify active development tools and environment health
     Check,
+    /// Clone a git repository directly and organize it
+    Clone {
+        /// Git repository URL (HTTPS or SSH)
+        url: String,
+        /// Optional custom project name override
+        name: Option<String>,
+        /// Optional branch or tag to clone
+        #[arg(short, long)]
+        branch: Option<String>,
+        /// Open in preferred editor after cloning
+        #[arg(short, long)]
+        open: bool,
+    },
 }
 
 #[derive(Subcommand, Debug, Clone)]
