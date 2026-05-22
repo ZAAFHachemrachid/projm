@@ -9,6 +9,12 @@ keywords = ["cli", "projects", "navigator", "developer-tools"]
 categories = ["command-line-utilities", "development-tools"]
 description = "Project organizer and fuzzy navigator for developers — classify, group, and jump to projects from the terminal"
 
+[package.metadata.wix]
+upgrade-guid = "A53BDBE1-3CAB-4F5F-85E0-65F2E6AF142C"
+path-guid = "B0EE6D84-5987-44DF-8328-624E589F9973"
+license = false
+eula = false
+
 
 [[bin]]
 name = "projm"
