@@ -29,7 +29,7 @@ One of the seven predefined, mutually exclusive project types (`apps`, `services
 _Avoid_: Classification, type, group, tag
 
 **Stack Marker**:
-A file or directory (such as `Cargo.toml`, `package.json`, or `.python-version`) whose presence identifies a project's framework or programming language stack.
+A file or directory (such as `Cargo.toml`, `package.json`, `pubspec.yaml`, `build.gradle`, `pom.xml`, `go.mod`, `Gemfile`, `composer.json`, `mix.exs`, `*.csproj`, `*.sln`, `CMakeLists.txt`, or `.python-version`) whose presence identifies a project's framework or programming language stack.
 _Avoid_: Configuration file, manifest, lockfile
 
 **Labs Marker**:
