@@ -1,6 +1,8 @@
 use projm::editors::{detect_installed, KNOWN_EDITORS};
-use std::{fs, os::unix::fs::PermissionsExt};
+use std::{fs, os::unix::fs::PermissionsExt, sync::Mutex};
 use tempfile::TempDir;
+
+static PATH_MUTEX: Mutex<()> = Mutex::new(());
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,6 +33,7 @@ impl Drop for PathGuard {
 
 #[test]
 fn detects_nothing_when_none_installed() {
+    let _lock = PATH_MUTEX.lock().unwrap();
     // Use a path that contains only an empty dir — none of our editors are there
     let dir = tempfile::tempdir().unwrap();
     let guard = {
@@ -45,6 +48,7 @@ fn detects_nothing_when_none_installed() {
 
 #[test]
 fn detects_single_installed_editor() {
+    let _lock = PATH_MUTEX.lock().unwrap();
     let (_dir, _guard) = fake_path(&["nvim"]);
     let installed = detect_installed();
     assert_eq!(installed.len(), 1);
@@ -54,6 +58,7 @@ fn detects_single_installed_editor() {
 
 #[test]
 fn detects_multiple_editors() {
+    let _lock = PATH_MUTEX.lock().unwrap();
     let (_dir, _guard) = fake_path(&["nvim", "zed", "hx"]);
     let installed = detect_installed();
     let binaries: Vec<&str> = installed.iter().map(|e| e.binary).collect();
@@ -64,6 +69,7 @@ fn detects_multiple_editors() {
 
 #[test]
 fn does_not_return_unknown_binaries() {
+    let _lock = PATH_MUTEX.lock().unwrap();
     let (_dir, _guard) = fake_path(&["nvim", "some-random-tool"]);
     let installed = detect_installed();
     assert!(
@@ -76,6 +82,7 @@ fn does_not_return_unknown_binaries() {
 
 #[test]
 fn resolved_path_points_to_file() {
+    let _lock = PATH_MUTEX.lock().unwrap();
     let (_dir, _guard) = fake_path(&["nvim"]);
     let installed = detect_installed();
     assert!(installed[0].path.is_file());
@@ -83,6 +90,7 @@ fn resolved_path_points_to_file() {
 
 #[test]
 fn preserves_known_editors_order() {
+    let _lock = PATH_MUTEX.lock().unwrap();
     // All editors installed → result should respect KNOWN_EDITORS order
     let all_binaries: Vec<&str> = KNOWN_EDITORS.iter().map(|(b, _)| *b).collect();
     let (_dir, _guard) = fake_path(&all_binaries);
