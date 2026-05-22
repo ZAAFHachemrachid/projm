@@ -244,7 +244,7 @@ projm blueprint run
 
 ---
 
-### v0.4 — `projm check` (Environment Diagnostics)
+### ~~v0.4 — `projm check` (Environment Diagnostics)~~ ✓ shipped
 
 A diagnostic subcommand that scans the local machine's `$PATH` to identify and verify the health, location, and versions of active compilers, runtimes, package managers, and development utilities:
 
@@ -368,7 +368,7 @@ pg --run
 | v0.2    | Auto-detect installed editors + remember last choice             | ✓ shipped |
 | v0.3    | Shell completions (zsh/bash/fish/powershell) + auto-install zoxide | ✓ shipped |
 | v0.3.2  | Interactive blueprints (`projm blueprint`) + auto-organization   | ✓ shipped |
-| v0.4    | `projm check` Environment diagnostics and doctor mode           | planned   |
+| v0.4    | `projm check` Environment diagnostics and doctor mode           | ✓ shipped |
 | v0.5    | `rules.toml` custom classification                               | planned   |
 | v0.6    | Universal language support (Flutter, Kotlin, Go, Swift, Java, …) | planned   |
 | v0.7    | `projm run` — detect and launch the project's dev command        | planned   |

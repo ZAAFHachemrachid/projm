@@ -43,6 +43,8 @@ pub enum Commands {
         #[command(subcommand)]
         sub: Option<BlueprintSubcommands>,
     },
+    /// Verify active development tools and environment health
+    Check,
 }
 
 #[derive(Subcommand, Debug, Clone)]

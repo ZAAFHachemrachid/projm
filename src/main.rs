@@ -8,6 +8,7 @@ mod main_cli;
 mod organize;
 mod prefs;
 mod blueprints;
+mod check;
 
 use anyhow::Result;
 use clap::Parser;
@@ -27,6 +28,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Commands::Blueprint { sub } => blueprints::run(sub),
+        Commands::Check => check::run(),
     }
 }
 
