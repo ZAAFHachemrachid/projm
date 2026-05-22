@@ -41,7 +41,22 @@ pub fn run(dir: &Path, dry_run: bool) -> Result<()> {
     // ── Collect immediate subdirectories ──────────────────────────────────────
     let mut raw: Vec<_> = std::fs::read_dir(dir)?
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir() && !e.file_name().to_string_lossy().starts_with('.'))
+        .filter(|e| {
+            let path = e.path();
+            if !path.is_dir() {
+                return false;
+            }
+            let name_os = e.file_name();
+            let name = name_os.to_string_lossy();
+            if name.starts_with('.') {
+                return false;
+            }
+            // Ignore common non-project subdirectories
+            if name == "node_modules" || name == "target" || name == "dist" || name == "build" {
+                return false;
+            }
+            true
+        })
         .collect();
     raw.sort_by_key(|e| e.file_name());
 

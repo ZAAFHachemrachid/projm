@@ -108,6 +108,11 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
         return Category::Labs;
     }
 
+    // ── Monorepos (Turborepo, pnpm workspaces, etc.) ──────────────────────────
+    if is_monorepo(path) {
+        return Category::Apps;
+    }
+
     let has_cargo   = has("Cargo.toml");
     let has_pkg     = has("package.json");
     let has_tauri   = has("src-tauri");
@@ -292,6 +297,29 @@ fn extract_dep_keys(json: &str) -> Vec<String> {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+fn is_monorepo(path: &Path) -> bool {
+    if path.join("turbo.json").exists()
+        || path.join("pnpm-workspace.yaml").exists()
+        || path.join("lerna.json").exists()
+        || path.join("nx.json").exists()
+    {
+        return true;
+    }
+
+    let pkg_json_path = path.join("package.json");
+    if pkg_json_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(pkg_json_path) {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                if val.get("workspaces").is_some() {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
 
 /// Returns true if Cargo.toml is present AND .cargo/config.toml names an
 /// embedded target (thumbv*, riscv*, xtensa*)

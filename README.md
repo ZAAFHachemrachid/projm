@@ -2,7 +2,7 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
-![version](https://img.shields.io/badge/version-0.4.3-orange)
+![version](https://img.shields.io/badge/version-0.4.4-orange)
 
 ## Install
 
@@ -88,6 +88,7 @@ Projects are classified by inspecting their contents:
 | --------------------------------------------------------- | --------------------- |
 | `doc-lab.md` present                                      | `labs`                |
 | `memory.x` / `openocd.cfg` / embedded Cargo target        | `embedded`            |
+| Monorepo markers (`turbo.json`, `pnpm-workspace.yaml`, `lerna.json`, `nx.json`, or `"workspaces"` in `package.json`) | `apps` |
 | `src-tauri/` or both `Cargo.toml` + `package.json`        | `apps`                |
 | `pubspec.yaml` (Flutter/Dart)                             | `apps` or `ui`        |
 | `build.gradle` / `build.gradle.kts` (Kotlin/Android)      | `apps`                |

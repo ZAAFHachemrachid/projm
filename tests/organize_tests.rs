@@ -173,3 +173,28 @@ fn test_organize_single_project() {
     assert!(!src_project.exists()); // Source should be moved
 }
 
+#[test]
+fn test_is_monorepo_classification() {
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = vec![];
+
+    // 1. turbo.json
+    let p1 = tmp.path().join("my-turbo-repo");
+    std::fs::create_dir_all(&p1).unwrap();
+    std::fs::write(p1.join("turbo.json"), "{}").unwrap();
+    assert_eq!(projm::classify::classify(&p1, &rules), Category::Apps);
+
+    // 2. package.json with workspaces
+    let p2 = tmp.path().join("my-workspace-repo");
+    std::fs::create_dir_all(&p2).unwrap();
+    std::fs::write(p2.join("package.json"), r#"{"workspaces": ["apps/*"]}"#).unwrap();
+    assert_eq!(projm::classify::classify(&p2, &rules), Category::Apps);
+
+    // 3. package.json without workspaces (should be classified under UI/Services/etc. based on normal rules)
+    let p3 = tmp.path().join("my-normal-repo");
+    std::fs::create_dir_all(&p3).unwrap();
+    std::fs::write(p3.join("package.json"), r#"{"dependencies": {"react": "18.0.0"}}"#).unwrap();
+    assert_eq!(projm::classify::classify(&p3, &rules), Category::Ui);
+}
+
+
