@@ -5,7 +5,7 @@ use crate::{
 use anyhow::Result;
 use colored::Colorize;
 use console::Term;
-use dialoguer::{theme::ColorfulTheme, Confirm};
+use dialoguer::{theme::ColorfulTheme, MultiSelect};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -144,13 +144,29 @@ pub fn run(dir: &Path, dry_run: bool) -> Result<()> {
         return Ok(());
     }
 
-    // ── Confirm ───────────────────────────────────────────────────────────────
-    let ok = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt(format!("Move {} project(s)?", pending.len()))
-        .default(false)
+    // ── Select ────────────────────────────────────────────────────────────────
+    let item_labels: Vec<String> = pending
+        .iter()
+        .map(|m| {
+            let group_label = m.group.as_deref().unwrap_or("─");
+            format!(
+                "{:<8}  {:<18}  {}",
+                m.cat.label(),
+                group_label,
+                m.name,
+            )
+        })
+        .collect();
+
+    let defaults = vec![true; pending.len()];
+
+    let selections = MultiSelect::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select projects to move")
+        .items(&item_labels)
+        .defaults(&defaults)
         .interact_on(&term)?;
 
-    if !ok {
+    if selections.is_empty() {
         term.write_line(&format!("  {}", "Aborted.".red()))?;
         return Ok(());
     }
@@ -158,7 +174,8 @@ pub fn run(dir: &Path, dry_run: bool) -> Result<()> {
     // ── Execute ───────────────────────────────────────────────────────────────
     let (mut moved, mut skipped) = (0usize, 0usize);
 
-    for m in pending {
+    for idx in selections {
+        let m = pending[idx];
         if let Some(parent) = m.dest.parent() {
             std::fs::create_dir_all(parent)?;
         }

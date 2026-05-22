@@ -98,3 +98,18 @@ fn last_editor_for_unknown_project_is_none() {
         .last_editor_for(&PathBuf::from("/projects/unknown"))
         .is_none());
 }
+
+#[test]
+fn roundtrip_last_project() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("prefs.json");
+
+    let project = PathBuf::from("/projects/trashnet");
+
+    let mut prefs = Prefs::default();
+    prefs.set_last_project_at(&path, &project).unwrap();
+
+    let loaded = Prefs::load_from(path);
+    let expected = project.canonicalize().unwrap_or(project).to_string_lossy().to_string();
+    assert_eq!(loaded.last_project, Some(expected));
+}

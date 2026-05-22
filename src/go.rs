@@ -21,7 +21,7 @@ struct GitInfo {
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
-pub fn run() -> Result<()> {
+pub fn run(query: Option<String>, last: bool) -> Result<()> {
     let base = config::load().base;
 
     if !base.exists() {
@@ -87,43 +87,92 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
-    // Find the longest project name to compute perfect padding (default to 20)
-    let max_name_len = projects
-        .iter()
-        .map(|p| p.name.len())
-        .max()
-        .unwrap_or(20)
-        .max(20);
+    let mut selected_project: Option<&Project> = None;
+    let mut prefs = Prefs::load()?;
 
-    // ── Fuzzy-pick project ────────────────────────────────────────────────────
-    let labels: Vec<String> = projects
-        .iter()
-        .map(|p| {
-            let cat_lbl = p.category.label();
-            
-            let git_part = if let Some(git) = &p.git_info {
-                let status_indicator = if git.is_dirty {
-                    "*".yellow().bold().to_string()
-                } else {
-                    "✓".green().to_string()
-                };
-                format!("  {:<15}  {}", git.branch.dimmed(), status_indicator)
-            } else {
-                "".to_string()
-            };
+    // 1. Check if we need to jump to the last entered project
+    let is_last_shortcut = last || query.as_deref() == Some("-");
+    if is_last_shortcut {
+        if let Some(ref last_path_str) = prefs.last_project {
+            selected_project = projects.iter().find(|p| {
+                p.path
+                    .canonicalize()
+                    .unwrap_or_else(|_| p.path.to_path_buf())
+                    .to_string_lossy()
+                    .to_string()
+                    == *last_path_str
+            });
+            if selected_project.is_none() {
+                anyhow::bail!("No previously entered project found or it no longer exists.");
+            }
+        } else {
+            anyhow::bail!("No previously entered project found.");
+        }
+    }
 
-            format!("  {}  {:<width$}  {}", cat_lbl, p.name, git_part, width = max_name_len)
-        })
-        .collect();
+    // 2. Check if a query is provided and it has a single exact case-insensitive match on name
+    if selected_project.is_none() {
+        if let Some(ref q) = query {
+            let q_lower = q.to_lowercase();
+            let matches: Vec<&Project> = projects
+                .iter()
+                .filter(|p| p.name.to_lowercase() == q_lower)
+                .collect();
+            if matches.len() == 1 {
+                selected_project = Some(matches[0]);
+            }
+        }
+    }
 
     let term = Term::stderr();
 
-    let idx = FuzzySelect::with_theme(&ColorfulTheme::default())
-        .with_prompt("jump to")
-        .items(&labels)
-        .interact_on(&term)?;
+    // 3. Fallback to interactive picker
+    let project = match selected_project {
+        Some(p) => p,
+        None => {
+            // Find the longest project name to compute perfect padding (default to 20)
+            let max_name_len = projects
+                .iter()
+                .map(|p| p.name.len())
+                .max()
+                .unwrap_or(20)
+                .max(20);
 
-    let project = &projects[idx];
+            // ── Fuzzy-pick project ────────────────────────────────────────────────────
+            let labels: Vec<String> = projects
+                .iter()
+                .map(|p| {
+                    let cat_lbl = p.category.label();
+                    
+                    let git_part = if let Some(git) = &p.git_info {
+                        let status_indicator = if git.is_dirty {
+                            "*".yellow().bold().to_string()
+                        } else {
+                            "✓".green().to_string()
+                        };
+                        format!("  {:<15}  {}", git.branch.dimmed(), status_indicator)
+                    } else {
+                        "".to_string()
+                    };
+
+                    format!("  {}  {:<width$}  {}", cat_lbl, p.name, git_part, width = max_name_len)
+                })
+                .collect();
+
+            let theme = ColorfulTheme::default();
+            let mut select = FuzzySelect::with_theme(&theme)
+                .with_prompt("jump to")
+                .items(&labels);
+            if let Some(ref q) = query {
+                select = select.with_initial_text(q);
+            }
+            let idx = select.interact_on(&term)?;
+            &projects[idx]
+        }
+    };
+
+    // ── Save last entered project preference ─────────────────────────────────
+    prefs.set_last_project(&project.path)?;
 
     // ── Pick editor (v0.2) ────────────────────────────────────────────────────
     let editor_binary = pick_editor(&project.path, &term)?;
@@ -182,7 +231,7 @@ fn pick_editor(project_path: &Path, term: &Term) -> Result<String> {
     match installed.len() {
         0 => anyhow::bail!(
             "no supported editors found on $PATH.\n\
-             Install one of: nvim, vim, hx, zed, code, cursor, idea, emacs"
+             Install one of: nvim, vim, hx, zed, zeditor, code, cursor, idea, emacs"
         ),
 
         1 => {

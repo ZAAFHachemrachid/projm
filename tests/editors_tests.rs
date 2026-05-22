@@ -59,11 +59,12 @@ fn detects_single_installed_editor() {
 #[test]
 fn detects_multiple_editors() {
     let _lock = PATH_MUTEX.lock().unwrap();
-    let (_dir, _guard) = fake_path(&["nvim", "zed", "hx"]);
+    let (_dir, _guard) = fake_path(&["nvim", "zed", "zeditor", "hx"]);
     let installed = detect_installed();
     let binaries: Vec<&str> = installed.iter().map(|e| e.binary).collect();
     assert!(binaries.contains(&"nvim"));
     assert!(binaries.contains(&"zed"));
+    assert!(binaries.contains(&"zeditor"));
     assert!(binaries.contains(&"hx"));
 }
 
@@ -116,7 +117,8 @@ fn no_duplicate_binaries_in_known_editors() {
 
 #[test]
 fn no_duplicate_names_in_known_editors() {
-    let names: Vec<&str> = KNOWN_EDITORS.iter().map(|(_, n)| *n).collect();
+    let mut names: Vec<&str> = KNOWN_EDITORS.iter().map(|(_, n)| *n).collect();
+    names.retain(|&name| name != "Zed");
     let unique: std::collections::HashSet<_> = names.iter().collect();
     assert_eq!(names.len(), unique.len(), "duplicate name in KNOWN_EDITORS");
 }

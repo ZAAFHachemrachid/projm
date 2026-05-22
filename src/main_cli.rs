@@ -26,7 +26,13 @@ pub enum Commands {
         dry_run: bool,
     },
     /// Fuzzy-pick a project and jump to it  (wrap with `eval` in shell)
-    G,
+    G {
+        /// Optional search query or project name to match
+        query: Option<String>,
+        /// Jump to the last entered project
+        #[arg(short = 'l', long)]
+        last: bool,
+    },
     /// Install shell integration, completions, and zoxide setup
     Init,
     /// Print shell completion script for a shell

@@ -166,6 +166,7 @@ projm scans `$PATH` at runtime — only editors that are actually installed appe
 | -------- | -------- |
 | `nvim`   | Neovim   |
 | `zed`    | Zed      |
+| `zeditor` | Zed      |
 | `code`   | VS Code  |
 | `kiro`   | Kiro     |
 | `hx`     | Helix    |

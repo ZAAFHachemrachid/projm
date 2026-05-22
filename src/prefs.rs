@@ -12,6 +12,9 @@ pub struct Prefs {
     /// canonical project path → last-used editor binary
     #[serde(default)]
     pub last_editor: HashMap<String, String>,
+    /// canonical path of the last-entered project
+    #[serde(default)]
+    pub last_project: Option<String>,
 }
 
 impl Prefs {
@@ -32,6 +35,10 @@ impl Prefs {
 
     pub fn set_last_editor(&mut self, project: &Path, binary: &str) -> Result<()> {
         self.set_last_editor_at(&default_path()?, project, binary)
+    }
+
+    pub fn set_last_project(&mut self, project: &Path) -> Result<()> {
+        self.set_last_project_at(&default_path()?, project)
     }
 
     // ── Testable variants (explicit path) ─────────────────────────────────────
@@ -61,6 +68,15 @@ impl Prefs {
         binary: &str,
     ) -> Result<()> {
         self.last_editor.insert(key(project), binary.to_owned());
+        self.save_to(path)
+    }
+
+    pub fn set_last_project_at(
+        &mut self,
+        path: &PathBuf,
+        project: &Path,
+    ) -> Result<()> {
+        self.last_project = Some(key(project));
         self.save_to(path)
     }
 }

@@ -145,21 +145,30 @@ fn update_shell_profile(target: InitTarget) -> Result<PathBuf> {
 fn shell_profile_path(target: InitTarget) -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
     match target {
-        InitTarget::Zsh => home.join(".zshrc"),
+        InitTarget::Zsh => home.join(".config/zsh/.zshrc"),
         InitTarget::PowerShell => home.join("Documents/PowerShell/Microsoft.PowerShell_profile.ps1"),
     }
 }
 
 fn ensure_projm_block_zsh(content: &str) -> String {
-    if content.contains(PROJM_BLOCK_START) {
-        return content.to_owned();
-    }
-
     let block = format!(
-        "{start}\npg() {{\n    local cmd\n    cmd=$(projm g 2>/dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\nfpath=(\"$HOME/.config/zsh/completions\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
+        "{start}\npg() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\nfpath=(\"$HOME/.config/zsh/completions\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
         start = PROJM_BLOCK_START,
         end = PROJM_BLOCK_END
     );
+
+    if let (Some(start_idx), Some(end_idx)) = (content.find(PROJM_BLOCK_START), content.find(PROJM_BLOCK_END)) {
+        if start_idx < end_idx {
+            let existing_block = &content[start_idx..end_idx + PROJM_BLOCK_END.len()];
+            if existing_block.trim() == block.trim() {
+                return content.to_owned();
+            }
+            let mut new_content = content[..start_idx].to_owned();
+            new_content.push_str(&block);
+            new_content.push_str(content[end_idx + PROJM_BLOCK_END.len()..].trim_start_matches('\n'));
+            return new_content;
+        }
+    }
 
     if content.trim().is_empty() {
         block
@@ -169,15 +178,24 @@ fn ensure_projm_block_zsh(content: &str) -> String {
 }
 
 fn ensure_projm_block_powershell(content: &str) -> String {
-    if content.contains(PROJM_BLOCK_START) {
-        return content.to_owned();
-    }
-
     let block = format!(
-        "{start}\nfunction pg {{\n  $cmd = projm g 2>$null\n  if ($cmd) {{ Invoke-Expression $cmd }}\n}}\n. \"$HOME/.config/powershell/completions/projm.ps1\"\n{end}\n",
+        "{start}\nfunction pg {{\n  $cmd = projm g $args 2>$null\n  if ($cmd) {{ Invoke-Expression $cmd }}\n}}\n. \"$HOME/.config/powershell/completions/projm.ps1\"\n{end}\n",
         start = PROJM_BLOCK_START,
         end = PROJM_BLOCK_END
     );
+
+    if let (Some(start_idx), Some(end_idx)) = (content.find(PROJM_BLOCK_START), content.find(PROJM_BLOCK_END)) {
+        if start_idx < end_idx {
+            let existing_block = &content[start_idx..end_idx + PROJM_BLOCK_END.len()];
+            if existing_block.trim() == block.trim() {
+                return content.to_owned();
+            }
+            let mut new_content = content[..start_idx].to_owned();
+            new_content.push_str(&block);
+            new_content.push_str(content[end_idx + PROJM_BLOCK_END.len()..].trim_start_matches('\n'));
+            return new_content;
+        }
+    }
 
     if content.trim().is_empty() {
         block

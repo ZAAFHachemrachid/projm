@@ -3,6 +3,7 @@ use std::path::PathBuf;
 pub const KNOWN_EDITORS: &[(&str, &str)] = &[
     ("nvim", "Neovim"),
     ("zed", "Zed"),
+    ("zeditor", "Zed"),
     ("code", "VS Code"),
     ("kiro", "Kiro"),
     ("hx", "Helix"),
