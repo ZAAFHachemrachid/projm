@@ -18,6 +18,9 @@ enum InitTarget {
 pub fn run() -> Result<()> {
     let target = detect_target();
 
+    // Create default rules.toml if not already present
+    crate::rules::init_default_rules()?;
+
     eprintln!("[1/3] checking zoxide...");
 
     if has_zoxide() {

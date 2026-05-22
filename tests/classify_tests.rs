@@ -1,6 +1,10 @@
-use projm::classify::{classify, prefix_key, split_suffix, Category};
+use projm::classify::{classify as classify_core, prefix_key, split_suffix, Category};
 use std::fs;
 use tempfile::TempDir;
+
+fn classify(path: &std::path::Path) -> Category {
+    classify_core(path, &[])
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

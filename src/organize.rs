@@ -51,12 +51,13 @@ pub fn run(dir: &Path, dry_run: bool) -> Result<()> {
     }
 
     // ── Pass 1: classify ──────────────────────────────────────────────────────
+    let custom_rules = crate::rules::load_rules();
     let classified: Vec<(PathBuf, String, Category)> = raw
         .iter()
         .map(|e| {
             let src = e.path();
             let name = e.file_name().to_string_lossy().to_string();
-            let cat = classify::classify(&src);
+            let cat = classify::classify(&src, &custom_rules);
             (src, name, cat)
         })
         .collect();
@@ -246,7 +247,8 @@ pub fn organize_single(src: &Path) -> Result<PathBuf> {
         .ok_or_else(|| anyhow::anyhow!("invalid directory path"))?
         .to_string_lossy()
         .to_string();
-    let cat = classify::classify(src);
+    let custom_rules = crate::rules::load_rules();
+    let cat = classify::classify(src, &custom_rules);
 
     // Resolve destination without grouping (empty prefix_count)
     let prefix_count = HashMap::new();

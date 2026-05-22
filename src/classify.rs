@@ -93,7 +93,14 @@ pub fn prefix_key(name: &str) -> Option<String> {
 
 // ── Classification logic ──────────────────────────────────────────────────────
 
-pub fn classify(path: &Path) -> Category {
+pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category {
+    // --- 1. Custom rules.toml (First match wins) ---
+    for rule in rules {
+        if rule.matches(path) {
+            return rule.category.clone();
+        }
+    }
+
     let has = |f: &str| path.join(f).exists();
 
     // ── doc-lab.md is the explicit labs marker — highest priority ──────────
@@ -309,4 +316,12 @@ fn has_ext(dir: &Path, ext: &str) -> bool {
                 .any(|e| e.path().extension().map_or(false, |x| x == ext))
         })
         .unwrap_or(false)
+}
+
+pub fn extract_dep_keys_helper(path: &Path) -> Vec<String> {
+    if let Ok(raw) = std::fs::read_to_string(path.join("package.json")) {
+        extract_dep_keys(&raw)
+    } else {
+        Vec::new()
+    }
 }

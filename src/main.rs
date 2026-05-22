@@ -9,6 +9,7 @@ mod organize;
 mod prefs;
 mod blueprints;
 mod check;
+mod rules;
 
 use anyhow::Result;
 use clap::Parser;
