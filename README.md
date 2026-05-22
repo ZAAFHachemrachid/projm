@@ -2,7 +2,7 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
-![version](https://img.shields.io/badge/version-0.4.4-orange)
+![version](https://img.shields.io/badge/version-0.5.0-orange)
 
 ## Install
 
@@ -293,7 +293,7 @@ projm check
 
 ---
 
-### v0.5 — Custom classification rules
+### ~~v0.5 — Custom classification rules~~ ✓ shipped
 
 User-defined rules in `~/.config/projm/rules.toml`, evaluated before built-in logic:
 
@@ -399,7 +399,7 @@ pg --run
 | v0.3    | Shell completions (zsh/bash/fish/powershell) + auto-install zoxide | ✓ shipped |
 | v0.3.2  | Interactive blueprints (`projm blueprint`) + auto-organization   | ✓ shipped |
 | v0.4    | `projm check` Environment diagnostics and doctor mode           | ✓ shipped |
-| v0.5    | `rules.toml` custom classification                               | planned   |
+| v0.5    | `rules.toml` custom classification                               | ✓ shipped |
 | v0.6    | Universal language support (Flutter, Kotlin, Go, Swift, Java, …) | planned   |
 | v0.7    | `projm run` — detect and launch the project's dev command        | planned   |
 
