@@ -55,3 +55,12 @@ _Avoid_: Editor list, editor selection
 **Project Preferences**:
 Persistent local configuration stored in `~/.config/projm/prefs.json` that remembers metadata such as the user's last chosen text editor for each individual **Project**.
 _Avoid_: User configuration, config file, project metadata
+
+**Git Branch Indicator**:
+The display in the **Fuzzy Jump** selector showing the active branch name of the **Project** if it is a Git repository.
+_Avoid_: Branch name, git version
+
+**Git Status Indicator**:
+A visual status icon (`✓` for clean or `*` for dirty/uncommitted changes) next to the **Git Branch Indicator** in the navigator prompt.
+_Avoid_: Repo status, changes tag
+

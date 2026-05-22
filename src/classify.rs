@@ -60,7 +60,7 @@ impl Category {
 
 pub const KNOWN_SUFFIXES: &[&str] = &[
     "api", "web", "mob", "mobile", "desk", "desktop",
-    "mono", "cli", "fw", "lib", "core", "ui",
+    "mono", "cli", "fw", "lib", "core", "ui", "website",
     // common real-world names people actually use
     "backend", "frontend", "server", "client",
     "app", "apps", "bot", "worker", "jobs",
@@ -86,6 +86,7 @@ pub fn split_suffix(name: &str) -> Option<(&str, &str)> {
 
 /// Normalised group key: both `DriveTrack-Api` and `drivetrack-web`
 /// map to `"drivetrack"`.
+#[allow(dead_code)]
 pub fn prefix_key(name: &str) -> Option<String> {
     split_suffix(name).map(|(prefix, _)| prefix.to_lowercase())
 }

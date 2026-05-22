@@ -11,6 +11,12 @@ struct Project {
     name: String,
     path: PathBuf,
     category: Category,
+    git_info: Option<GitInfo>,
+}
+
+struct GitInfo {
+    branch: String,
+    is_dirty: bool,
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -51,17 +57,23 @@ pub fn run() -> Result<()> {
                     .collect();
                 children.sort_by_key(|e| e.file_name());
                 for child in children {
+                    let child_path = child.path();
+                    let git_info = get_git_info(&child_path);
                     projects.push(Project {
                         name: child.file_name().to_string_lossy().to_string(),
-                        path: child.path(),
+                        path: child_path,
                         category: cat.clone(),
+                        git_info,
                     });
                 }
             } else {
+                let entry_path = entry.path();
+                let git_info = get_git_info(&entry_path);
                 projects.push(Project {
                     name: entry.file_name().to_string_lossy().to_string(),
-                    path: entry.path(),
+                    path: entry_path,
                     category: cat.clone(),
+                    git_info,
                 });
             }
         }
@@ -75,10 +87,33 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
+    // Find the longest project name to compute perfect padding (default to 20)
+    let max_name_len = projects
+        .iter()
+        .map(|p| p.name.len())
+        .max()
+        .unwrap_or(20)
+        .max(20);
+
     // ── Fuzzy-pick project ────────────────────────────────────────────────────
     let labels: Vec<String> = projects
         .iter()
-        .map(|p| format!("{}  {}", p.category.label(), p.name))
+        .map(|p| {
+            let cat_lbl = p.category.label();
+            
+            let git_part = if let Some(git) = &p.git_info {
+                let status_indicator = if git.is_dirty {
+                    "*".yellow().bold().to_string()
+                } else {
+                    "✓".green().to_string()
+                };
+                format!("  {:<15}  {}", git.branch.dimmed(), status_indicator)
+            } else {
+                "".to_string()
+            };
+
+            format!("  {}  {:<width$}  {}", cat_lbl, p.name, git_part, width = max_name_len)
+        })
         .collect();
 
     let term = Term::stderr();
@@ -100,6 +135,37 @@ pub fn run() -> Result<()> {
     println!("{} {} && {} .", cd_cmd, path, editor_binary);
 
     Ok(())
+}
+
+/// Retrieve Git branch and dirty status of a project directory if it is a Git repository.
+fn get_git_info(path: &Path) -> Option<GitInfo> {
+    if !path.join(".git").exists() {
+        return None;
+    }
+
+    let branch_output = std::process::Command::new("git")
+        .args(["branch", "--show-current"])
+        .current_dir(path)
+        .output()
+        .ok()?;
+
+    if !branch_output.status.success() {
+        return None;
+    }
+    let branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+    if branch.is_empty() {
+        return None;
+    }
+
+    let status_output = std::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(path)
+        .output()
+        .ok()?;
+
+    let is_dirty = status_output.status.success() && !status_output.stdout.is_empty();
+
+    Some(GitInfo { branch, is_dirty })
 }
 
 // ── Editor selection (v0.2) ───────────────────────────────────────────────────
@@ -183,5 +249,97 @@ fn detect_cd() -> &'static str {
 
 fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn setup_git_repo() -> (TempDir, std::path::PathBuf) {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().to_path_buf();
+
+        // Initialize git repo
+        std::process::Command::new("git")
+            .arg("init")
+            .current_dir(&path)
+            .output()
+            .unwrap();
+
+        // Git requires config user.name and user.email to commit
+        std::process::Command::new("git")
+            .args(["config", "user.name", "Test"])
+            .current_dir(&path)
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["config", "user.email", "test@example.com"])
+            .current_dir(&path)
+            .output()
+            .unwrap();
+
+        (temp, path)
+    }
+
+    #[test]
+    fn test_non_git_dir_returns_none() {
+        let temp = tempfile::tempdir().unwrap();
+        assert!(get_git_info(temp.path()).is_none());
+    }
+
+    #[test]
+    fn test_git_repo_clean() {
+        let (_temp, path) = setup_git_repo();
+
+        // Create a file and commit it so we are on a valid branch (default branch, e.g. main/master)
+        let file_path = path.join("hello.txt");
+        std::fs::write(&file_path, "hello").unwrap();
+
+        std::process::Command::new("git")
+            .args(["add", "hello.txt"])
+            .current_dir(&path)
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["commit", "-m", "initial commit"])
+            .current_dir(&path)
+            .output()
+            .unwrap();
+
+        let info = get_git_info(&path).expect("should find git info");
+        assert!(!info.branch.is_empty());
+        assert!(!info.is_dirty);
+    }
+
+    #[test]
+    fn test_git_repo_dirty() {
+        let (_temp, path) = setup_git_repo();
+
+        // Create a file and commit it first
+        let file_path = path.join("hello.txt");
+        std::fs::write(&file_path, "hello").unwrap();
+
+        std::process::Command::new("git")
+            .args(["add", "hello.txt"])
+            .current_dir(&path)
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["commit", "-m", "initial commit"])
+            .current_dir(&path)
+            .output()
+            .unwrap();
+
+        // Create a new untracked file to make the repo dirty
+        let dirty_path = path.join("dirty.txt");
+        std::fs::write(&dirty_path, "uncommitted").unwrap();
+
+        let info = get_git_info(&path).expect("should find git info");
+        assert!(!info.branch.is_empty());
+        assert!(info.is_dirty);
+    }
 }
 

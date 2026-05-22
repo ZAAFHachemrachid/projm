@@ -1,17 +1,5 @@
 use projm::prefs::Prefs;
 use std::{fs, path::PathBuf};
-use tempfile::TempDir;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/// Redirect the prefs file into a temp dir so tests never touch ~/.config.
-/// Returns (TempDir, path-to-use-as-project).
-fn setup() -> (TempDir, PathBuf) {
-    let tmp = tempfile::tempdir().unwrap();
-    let project = tmp.path().join("my-project");
-    fs::create_dir_all(&project).unwrap();
-    (tmp, project)
-}
 
 // ── load ─────────────────────────────────────────────────────────────────────
 

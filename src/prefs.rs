@@ -21,6 +21,7 @@ impl Prefs {
         Ok(Self::load_from(default_path()?))
     }
 
+    #[allow(dead_code)]
     pub fn save(&self) -> Result<()> {
         self.save_to(&default_path()?)
     }
