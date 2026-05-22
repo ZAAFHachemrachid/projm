@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: projm-Linux-x86_64.tar.gz
+
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            name: projm-Linux-aarch64.tar.gz
+
+          - target: x86_64-apple-darwin
+            os: macos-13
+            name: projm-macOS-x86_64.tar.gz
+
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: projm-macOS-arm64.tar.gz
+
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: projm-Windows-x86_64.zip
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross (for Linux targets)
+        if: contains(matrix.target, 'linux')
+        uses: taiki-e/install-action@cross
+
+      - name: Build binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == *linux* ]]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Package release asset
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            7z a ../../../${{ matrix.name }} projm.exe
+          else
+            tar -czf ../../../${{ matrix.name }} projm
+          fi
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.name }}
