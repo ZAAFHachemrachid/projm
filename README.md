@@ -6,18 +6,31 @@ Project organizer and navigator for developers. Scans a directory, classifies pr
 
 ## Install
 
-### 1. Pre-compiled Binaries (Recommended)
+### 1. Quick Install Scripts (Recommended)
 
-You can download pre-compiled binaries directly from [GitHub Releases](https://github.com/ZAAFHachemrachid/projm/releases) for Linux, macOS, and Windows.
+To install `projm` via pre-compiled binaries, you can run the interactive installation script.
 
-For an automated, fast cross-platform binary installation (without needing to compile from source), install **`cargo-binstall`** and run:
+**For macOS and Linux (Shell):**
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ZAAFHachemrachid/projm/releases/latest/download/projm-installer.sh | sh
+```
 
+**For Windows (PowerShell):**
+```powershell
+irm https://github.com/ZAAFHachemrachid/projm/releases/latest/download/projm-installer.ps1 | iex
+```
+
+### 2. Pre-compiled Binaries & cargo-binstall
+
+You can download the binaries directly from [GitHub Releases](https://github.com/ZAAFHachemrachid/projm/releases).
+
+Alternatively, install via **`cargo-binstall`**:
 ```bash
 cargo install cargo-binstall
 cargo binstall projm
 ```
 
-### 2. From Source
+### 3. From Source
 
 If you have the Rust toolchain installed, you can build and install `projm` directly from crates.io:
 
