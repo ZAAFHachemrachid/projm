@@ -13,6 +13,7 @@ pub enum Category {
     Ml,
     Tools,
     Labs,
+    Content,
 }
 
 impl Category {
@@ -25,6 +26,7 @@ impl Category {
             Self::Ml       => "ml",
             Self::Tools    => "tools",
             Self::Labs     => "labs",
+            Self::Content  => "content",
         }
     }
 
@@ -39,6 +41,7 @@ impl Category {
             Self::Ml       => s.green().bold().to_string(),
             Self::Tools    => s.white().bold().to_string(),
             Self::Labs     => s.truecolor(255, 100, 50).bold().to_string(),
+            Self::Content  => s.truecolor(255, 105, 180).bold().to_string(),
         }
     }
 
@@ -51,6 +54,7 @@ impl Category {
             Self::Ml,
             Self::Tools,
             Self::Labs,
+            Self::Content,
         ]
     }
 }

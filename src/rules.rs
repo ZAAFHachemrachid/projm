@@ -45,6 +45,7 @@ fn parse_category(s: &str) -> Option<Category> {
         "ml" => Some(Category::Ml),
         "tools" => Some(Category::Tools),
         "labs" => Some(Category::Labs),
+        "content" => Some(Category::Content),
         _ => None,
     }
 }
@@ -119,7 +120,7 @@ pub fn init_default_rules() -> Result<()> {
 # - suffix        : Override built-in suffix behaviour (e.g. "fw")
 # - has_dep       : Check dependencies in Cargo.toml, package.json, or requirements.txt/pyproject.toml (e.g. "burn")
 #
-# Categories must be one of: "apps", "services", "ui", "embedded", "ml", "tools", "labs"
+# Categories must be one of: "apps", "services", "ui", "embedded", "ml", "tools", "labs", "content"
 #
 # Examples:
 #
@@ -146,6 +147,10 @@ pub fn init_default_rules() -> Result<()> {
 # [[rule]]
 # has_dep  = "tensorflow"
 # category = "ml"
+#
+# [[rule]]
+# has_dep  = "remotion"
+# category = "content"
 "#;
 
     std::fs::write(&path, template)?;

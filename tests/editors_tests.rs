@@ -124,10 +124,10 @@ fn no_duplicate_names_in_known_editors() {
 }
 
 #[test]
-fn antigravity_not_in_known_editors() {
+fn antigravity_is_in_known_editors() {
     assert!(
-        !KNOWN_EDITORS.iter().any(|(b, _)| *b == "antigravity"),
-        "antigravity should not be in the editor list"
+        KNOWN_EDITORS.iter().any(|(b, n)| *b == "antigravity-ide" && *n == "Antigravity"),
+        "antigravity-ide should be in the editor list"
     );
 }
 

@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Organize { dir, dry_run } => organize::run(&dir, dry_run),
         Commands::G { query, last } => go::run(query, last),
-        Commands::Init => init_setup::run(),
+        Commands::Init { alias, non_interactive } => init_setup::run(&alias, non_interactive),
         Commands::Completions { shell } => completions::emit(shell),
         Commands::SetBase { path } => config::set_base(&path),
         Commands::Editors => {

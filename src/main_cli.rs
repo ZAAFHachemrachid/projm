@@ -34,7 +34,14 @@ pub enum Commands {
         last: bool,
     },
     /// Install shell integration, completions, and zoxide setup
-    Init,
+    Init {
+        /// Shell function/alias name
+        #[arg(short = 'a', long, default_value = "pg")]
+        alias: String,
+        /// Run in non-interactive mode, bypassing the onboarding wizard
+        #[arg(long)]
+        non_interactive: bool,
+    },
     /// Print shell completion script for a shell
     Completions {
         #[arg(value_enum)]

@@ -222,3 +222,20 @@ fn test_has_dep_pyproject_toml() {
     fs::write(dir2.path().join("pyproject.toml"), "[tool.poetry.dependencies]\ntensorflow = \"^2.0\"\n").unwrap();
     assert!(rule.matches(dir2.path()));
 }
+
+#[test]
+fn test_has_dep_remotion_to_content() {
+    let dir = project(&["package.json"]);
+    fs::write(dir.path().join("package.json"), r#"{"dependencies":{"remotion":"^4.0.0"}}"#).unwrap();
+
+    let rule = ValidatedRule {
+        name: None,
+        marker: None,
+        name_contains: None,
+        suffix: None,
+        has_dep: Some("remotion".to_string()),
+        category: Category::Content,
+    };
+    assert!(rule.matches(dir.path()));
+    assert_eq!(rule.category, Category::Content);
+}

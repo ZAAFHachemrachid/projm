@@ -24,7 +24,10 @@ struct Move {
 // ── Public entry point ────────────────────────────────────────────────────────
 
 pub fn run(dir: &Path, dry_run: bool) -> Result<()> {
-    let base = config::load().base;
+    run_with_base(dir, &config::load().base, dry_run)
+}
+
+pub fn run_with_base(dir: &Path, base: &Path, dry_run: bool) -> Result<()> {
     let term = Term::stderr();
 
     if !dir.exists() {

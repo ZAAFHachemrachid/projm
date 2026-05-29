@@ -2,7 +2,7 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
-![version](https://img.shields.io/badge/version-0.6.0-orange)
+![version](https://img.shields.io/badge/version-0.6.1-orange)
 
 ## Install
 
@@ -43,11 +43,17 @@ cargo install projm
 Add the shell function to your zsh config:
 
 ```bash
-projm init >> ~/.config/zsh/.zshrc
+projm init
 source ~/.config/zsh/.zshrc
 ```
 
-This adds `pg` — a shell function that jumps you into a project and opens your editor.
+This automatically installs completions, sets up zoxide, and adds `pg` — a shell function that jumps you into a project and opens your editor.
+
+> [!TIP]
+> **Avoid Command Collisions:** If `pg` conflicts with another command on your system (e.g. PostgreSQL or `pgcli`), you can customize the generated shell function name using the `--alias` (or `-a`) flag:
+> ```bash
+> projm init --alias pj
+> ```
 
 ## Usage
 
@@ -155,7 +161,7 @@ projm organize ~/projects
 
 ### `pg` — fuzzy project jump
 
-`pg` calls `projm g` internally. All interactive UI writes to stderr, only the final shell command goes to stdout for `eval`. Uses `z` (zoxide) if available, falls back to `cd`.
+`pg` calls `projm g` internally (or your custom alias if configured via `projm init --alias <name>`). All interactive UI writes to stderr, only the final shell command goes to stdout for `eval`. Uses `z` (zoxide) if available, falls back to `cd`.
 
 ```
   apps      drivetrack-api        main  ✓

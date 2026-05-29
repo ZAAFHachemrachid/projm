@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::{fs, path::PathBuf, process::Command};
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select, FuzzySelect};
 
-use crate::completions;
+use crate::{completions, config, editors};
 
 const PROJM_BLOCK_START: &str = "# >>> projm >>>";
 const PROJM_BLOCK_END: &str = "# <<< projm <<<";
@@ -15,12 +16,24 @@ enum InitTarget {
     PowerShell,
 }
 
-pub fn run() -> Result<()> {
+pub fn run(alias: &str, non_interactive: bool) -> Result<()> {
     let target = detect_target();
 
     // Create default rules.toml if not already present
     crate::rules::init_default_rules()?;
 
+    let is_interactive = !non_interactive && console::user_attended();
+
+    if is_interactive {
+        run_wizard(alias, target)?;
+    } else {
+        run_non_interactive(alias, target)?;
+    }
+
+    Ok(())
+}
+
+fn run_non_interactive(alias: &str, target: InitTarget) -> Result<()> {
     eprintln!("[1/3] checking zoxide...");
 
     if has_zoxide() {
@@ -40,8 +53,235 @@ pub fn run() -> Result<()> {
     );
 
     eprintln!("[3/3] updating shell profile...");
-    let profile = update_shell_profile(target)?;
+    let profile = update_shell_profile(target, alias)?;
     eprintln!("\n  {} updated {}", "done.".green().bold(), profile.display());
+
+    Ok(())
+}
+
+fn run_wizard(alias: &str, target: InitTarget) -> Result<()> {
+    println!();
+    println!("{}", "  ┌────────────────────────────────────────────────────────┐".cyan());
+    println!("{}", "  │  🚀 Welcome to projm                                   │".cyan().bold());
+    println!("{}", "  │  The developer-first project organizer & navigator.    │".cyan());
+    println!("{}", "  └────────────────────────────────────────────────────────┘".cyan());
+    println!();
+    println!("  Let's configure your development environment. This wizard will guide you through:");
+    println!("    ⚙️  Setting your base directory");
+    println!("    📝 Picking your preferred editor");
+    println!("    🐚 Setting up shell completions & the fuzzy-jump alias");
+    println!("    🎮 Running an interactive 1-minute sandbox showcase");
+    println!();
+
+    let theme = ColorfulTheme::default();
+
+    // 1. Configure Base Directory
+    let current_base = config::load().base;
+    let default_base_str = current_base.to_string_lossy().to_string();
+    let base_input: String = Input::with_theme(&theme)
+        .with_prompt("Where would you like to store your organized projects?")
+        .default(default_base_str)
+        .interact_text()?;
+
+    let base_path = PathBuf::from(&base_input);
+    if base_path != current_base {
+        config::set_base(&base_path)?;
+    }
+    println!();
+
+    // 2. Select Preferred Editor
+    let installed = editors::detect_installed();
+    let mut selected_editor = String::new();
+
+    if installed.is_empty() {
+        println!("  {}", "No supported editors detected on your $PATH.".yellow());
+        let manual_entry: String = Input::with_theme(&theme)
+            .with_prompt("Please enter your editor command (e.g. nvim, code, helix) or press Enter to skip:")
+            .default("".to_string())
+            .interact_text()?;
+        if !manual_entry.is_empty() {
+            selected_editor = manual_entry;
+            println!("  Default editor set to: {}", selected_editor.bold());
+        }
+    } else {
+        println!("  Detected the following editors installed on your machine:");
+        let labels: Vec<String> = installed.iter().map(|e| format!("  {} ({})", e.name, e.binary)).collect();
+        let chosen = Select::with_theme(&theme)
+            .with_prompt("Choose your preferred editor")
+            .items(&labels)
+            .default(0)
+            .interact()?;
+        selected_editor = installed[chosen].binary.to_owned();
+        println!("  {} Preferred editor set to: {}", "✓".green(), selected_editor.bold());
+    }
+    println!();
+
+    // 3. Configure Alias
+    let chosen_alias: String = Input::with_theme(&theme)
+        .with_prompt("What alias would you like to use for fuzzy-navigation?")
+        .default(alias.to_string())
+        .interact_text()?;
+    println!();
+
+    // 4. Check & Install Zoxide
+    println!("{}", "[1/3] checking zoxide...".bold());
+    if has_zoxide() {
+        println!("      {} already installed", "✓".green().bold());
+    } else {
+        println!("      zoxide not found. It is highly recommended for project navigation.");
+        let install_z = Confirm::with_theme(&theme)
+            .with_prompt("Would you like to try installing zoxide automatically now?")
+            .default(true)
+            .interact()?;
+        if install_z {
+            if let Err(e) = install_zoxide() {
+                println!("      {} {}", "✗".red().bold(), e);
+            }
+        }
+    }
+    println!();
+
+    // 5. Setup completions & shell profile
+    println!("{}", "[2/3] writing completions...".bold());
+    let completion_file = completion_path(target);
+    write_completions(target, &completion_file)?;
+    println!(
+        "      {} {}",
+        "✓".green().bold(),
+        completion_file.display().to_string().dimmed()
+    );
+    println!();
+
+    println!("{}", "[3/3] updating shell profile...".bold());
+    let profile = update_shell_profile(target, &chosen_alias)?;
+    println!("      {} updated {}", "✓".green().bold(), profile.display());
+    println!();
+
+    println!("{}", "🎉 Configuration successfully complete!".green().bold());
+    println!();
+
+    // 6. Interactive sandbox demo!
+    let run_demo = Confirm::with_theme(&theme)
+        .with_prompt("Would you like to run a quick 1-minute sandbox demo of projm?")
+        .default(true)
+        .interact()?;
+
+    if run_demo {
+        run_sandbox_demo(&selected_editor)?;
+    }
+
+    println!();
+    println!("  To start using projm, restart your shell or run:");
+    println!("  {}", format!("source {}", profile.display()).cyan());
+    println!();
+
+    Ok(())
+}
+
+fn run_sandbox_demo(preferred_editor: &str) -> Result<()> {
+    println!();
+    println!("{}", "🎮 Starting Sandbox Demo...".cyan().bold());
+    println!("  We will scaffold a temporary workspace to show how projm classifies and navigates projects.");
+
+    // Create temp directory
+    let temp_dir = tempfile::tempdir()?;
+    let sandbox_path = temp_dir.path();
+    let source_dump = sandbox_path.join("source-dump");
+    let demo_base = sandbox_path.join("demo-base");
+
+    fs::create_dir_all(&source_dump)?;
+    fs::create_dir_all(&demo_base)?;
+
+    // 1. Scaffold mock projects
+    let rust_proj = source_dump.join("rust-telemetry-server");
+    let react_proj = source_dump.join("react-dashboard-ui");
+    let python_proj = source_dump.join("python-ml-model");
+
+    fs::create_dir_all(&rust_proj)?;
+    fs::create_dir_all(&react_proj)?;
+    fs::create_dir_all(&python_proj)?;
+
+    fs::write(rust_proj.join("Cargo.toml"), r#"[package]
+name = "rust-telemetry-server"
+version = "0.1.0"
+[dependencies]
+tokio = "1"
+"#)?;
+
+    fs::write(react_proj.join("package.json"), r#"{
+  "name": "react-dashboard-ui",
+  "dependencies": {
+    "react": "^18.0.0",
+    "vite": "^4.0.0"
+  }
+}"#)?;
+
+    fs::write(python_proj.join("pyproject.toml"), r#"[project]
+name = "python-ml-model"
+dependencies = [
+    "torch>=2.0"
+]
+"#)?;
+
+    println!();
+    println!("  ⚡ {}", "Step 1: Automatic Classification & Organization".bold());
+    println!("  Scaffolded 3 unorganized mock projects in a temporary dump folder:");
+    println!("    📁 rust-telemetry-server/ (contains Cargo.toml)");
+    println!("    📁 react-dashboard-ui/    (contains package.json)");
+    println!("    📁 python-ml-model/        (contains pyproject.toml)");
+    println!();
+    println!("  Running 'projm organize' to scan, classify, and group them into 'demo-base/'...");
+    println!();
+
+    // Run our custom run_with_base on the sandbox
+    crate::organize::run_with_base(&source_dump, &demo_base, false)?;
+
+    println!();
+    println!("  ⚡ {}", "Step 2: Fuzzy Navigation Showcase".bold());
+    println!("  Now let's test how you will navigate between them.");
+    println!("  We will open a mini-version of our fuzzy navigator.");
+    println!("  Use your Arrow Keys to select, or start typing to search:");
+    println!();
+
+    // Display Fuzzy Picker loaded with mock projects
+    let demo_projects = vec!(
+        ("services", "rust-telemetry-server", demo_base.join("services/rust-telemetry-server")),
+        ("ui", "react-dashboard-ui", demo_base.join("ui/react-dashboard-ui")),
+        ("ml", "python-ml-model", demo_base.join("ml/python-ml-model")),
+    );
+
+    let labels: Vec<String> = demo_projects
+        .iter()
+        .map(|(cat, name, _)| format!("  {:<10}  {}", format!("[{}]", cat).cyan(), name.bold()))
+        .collect();
+
+    let chosen = FuzzySelect::with_theme(&ColorfulTheme::default())
+        .with_prompt("jump to")
+        .items(&labels)
+        .default(0)
+        .interact()?;
+
+    let (chosen_cat, chosen_name, chosen_path) = &demo_projects[chosen];
+
+    println!();
+    println!("  🎉 {}", "Awesome choice!".green().bold());
+    println!("  You selected: {} {}", format!("[{}]", chosen_cat).cyan(), chosen_name.bold());
+    println!("  Path: {}", chosen_path.display().to_string().dimmed());
+    println!();
+    if !preferred_editor.is_empty() {
+        println!(
+            "  In a real terminal shell, running 'pg' would instantly jump to this folder\n  and run: {} .",
+            preferred_editor.bold()
+        );
+    } else {
+        println!(
+            "  In a real terminal shell, running 'pg' would instantly jump to this folder\n  and open your default editor."
+        );
+    }
+    println!();
+
+    println!("{}", "  Onboarding complete! You are ready to organize and navigate your codebases like a pro. 🚀".green());
+    println!();
 
     Ok(())
 }
@@ -116,7 +356,7 @@ fn write_completions(target: InitTarget, path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn update_shell_profile(target: InitTarget) -> Result<PathBuf> {
+fn update_shell_profile(target: InitTarget, alias: &str) -> Result<PathBuf> {
     let profile = shell_profile_path(target);
 
     if let Some(parent) = profile.parent() {
@@ -126,11 +366,11 @@ fn update_shell_profile(target: InitTarget) -> Result<PathBuf> {
     let old = fs::read_to_string(&profile).unwrap_or_default();
     let updated = match target {
         InitTarget::Zsh => {
-            let with_projm = ensure_projm_block_zsh(&old);
+            let with_projm = ensure_projm_block_zsh(&old, alias);
             ensure_line(&with_projm, ZOXIDE_INIT_ZSH)
         }
         InitTarget::PowerShell => {
-            let with_projm = ensure_projm_block_powershell(&old);
+            let with_projm = ensure_projm_block_powershell(&old, alias);
             ensure_line(&with_projm, ZOXIDE_INIT_POWERSHELL)
         }
     };
@@ -150,9 +390,10 @@ fn shell_profile_path(target: InitTarget) -> PathBuf {
     }
 }
 
-fn ensure_projm_block_zsh(content: &str) -> String {
+fn ensure_projm_block_zsh(content: &str, alias: &str) -> String {
     let block = format!(
-        "{start}\npg() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\nfpath=(\"$HOME/.config/zsh/completions\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
+        "{start}\n{alias}() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\nfpath=(\"$HOME/.config/zsh/completions\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
+        alias = alias,
         start = PROJM_BLOCK_START,
         end = PROJM_BLOCK_END
     );
@@ -177,9 +418,10 @@ fn ensure_projm_block_zsh(content: &str) -> String {
     }
 }
 
-fn ensure_projm_block_powershell(content: &str) -> String {
+fn ensure_projm_block_powershell(content: &str, alias: &str) -> String {
     let block = format!(
-        "{start}\nfunction pg {{\n  $cmd = projm g $args 2>$null\n  if ($cmd) {{ Invoke-Expression $cmd }}\n}}\n. \"$HOME/.config/powershell/completions/projm.ps1\"\n{end}\n",
+        "{start}\nfunction {alias} {{\n  $cmd = projm g $args 2>$null\n  if ($cmd) {{ Invoke-Expression $cmd }}\n}}\n. \"$HOME/.config/powershell/completions/projm.ps1\"\n{end}\n",
+        alias = alias,
         start = PROJM_BLOCK_START,
         end = PROJM_BLOCK_END
     );
@@ -276,16 +518,27 @@ mod tests {
 
     #[test]
     fn ensure_projm_block_is_idempotent() {
-        let a = ensure_projm_block_zsh("");
-        let b = ensure_projm_block_zsh(&a);
+        let a = ensure_projm_block_zsh("", "pg");
+        let b = ensure_projm_block_zsh(&a, "pg");
         assert_eq!(a, b);
     }
 
     #[test]
     fn ensure_powershell_block_is_idempotent() {
-        let a = ensure_projm_block_powershell("");
-        let b = ensure_projm_block_powershell(&a);
+        let a = ensure_projm_block_powershell("", "pg");
+        let b = ensure_projm_block_powershell(&a, "pg");
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn ensure_projm_block_custom_alias() {
+        let block_zsh = ensure_projm_block_zsh("", "pj");
+        assert!(block_zsh.contains("pj() {"));
+        assert!(!block_zsh.contains("pg() {"));
+
+        let block_ps = ensure_projm_block_powershell("", "pj");
+        assert!(block_ps.contains("function pj {"));
+        assert!(!block_ps.contains("function pg {"));
     }
 
     #[test]

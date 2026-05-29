@@ -371,9 +371,10 @@ fn category_dir_names_are_stable() {
     assert_eq!(Category::Ml.dir_name(), "ml");
     assert_eq!(Category::Tools.dir_name(), "tools");
     assert_eq!(Category::Labs.dir_name(), "labs");
+    assert_eq!(Category::Content.dir_name(), "content");
 }
 
 #[test]
-fn category_all_has_seven_variants() {
-    assert_eq!(Category::all().len(), 7);
+fn category_all_has_eight_variants() {
+    assert_eq!(Category::all().len(), 8);
 }

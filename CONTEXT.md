@@ -25,7 +25,7 @@ A **Project** with no recognizable markers, or one explicitly marked with a **La
 _Avoid_: Unmarked folder, experiment
 
 **Category**:
-One of the seven predefined, mutually exclusive project types (`apps`, `services`, `ui`, `embedded`, `ml`, `tools`, `labs`) that determines a project's physical parent folder inside the **Base Directory**.
+One of the eight predefined, mutually exclusive project types (`apps`, `services`, `ui`, `embedded`, `ml`, `tools`, `labs`, `content`) that determines a project's physical parent folder inside the **Base Directory**.
 _Avoid_: Classification, type, group, tag
 
 **Stack Marker**:
