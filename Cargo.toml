@@ -1,48 +1,14 @@
-[package]
-name = "projm"
+[workspace]
+resolver = "2"
+members = [
+    "crates/projm-core",
+    "crates/projm-cli",
+    "src-tauri",
+]
+
+[workspace.package]
 version = "0.7.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/ZAAFHachemrachid/projm"
-readme = "README.md"
-keywords = ["cli", "projects", "navigator", "developer-tools"]
-categories = ["command-line-utilities", "development-tools"]
-description = "Project organizer and fuzzy navigator for developers — classify, group, and jump to projects from the terminal"
 authors = ["Rachid Zaaf <[rachidzaaf9@gmailcom]>"]
-
-[package.metadata.wix]
-upgrade-guid = "A53BDBE1-3CAB-4F5F-85E0-65F2E6AF142C"
-path-guid = "B0EE6D84-5987-44DF-8328-624E589F9973"
-license = false
-eula = false
-
-
-[[bin]]
-name = "projm"
-path = "src/main.rs"
-
-[lib]
-name = "projm"
-path = "src/lib.rs"
-
-[dependencies]
-anyhow = "1"
-clap = { version = "4", features = ["derive"] }
-clap_complete = "4"
-colored = "3.1.1"
-console = "0.16.3"
-dialoguer = { version = "0.12.0", features = ["fuzzy-select"] }
-dirs = "6.0.0"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tempfile = "3"
-toml = "0.8"
-
-
-[dev-dependencies]
-tempfile = "3"
-
-# The profile that 'dist' will build with
-[profile.dist]
-inherits = "release"
-lto = "thin"

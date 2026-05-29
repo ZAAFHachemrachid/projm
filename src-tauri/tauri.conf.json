@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicehash/tauri/main/crates/tauri-config-schema/schema.json",
+  "productName": "Projm",
+  "version": "0.1.0",
+  "identifier": "com.projm.desktop",
+  "build": {
+    "frontendDist": "../app/out",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "cd ../app && npm run dev",
+    "beforeBuildCommand": "cd ../app && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Projm — Project Organizer",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
