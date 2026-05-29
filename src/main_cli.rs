@@ -58,6 +58,11 @@ pub enum Commands {
     },
     /// Verify active development tools and environment health
     Check,
+    /// Detect and run the project's dev command
+    Run {
+        /// Optional path or project name to run
+        path_or_query: Option<String>,
+    },
     /// Clone a git repository directly and organize it
     Clone {
         /// Git repository URL (HTTPS or SSH)

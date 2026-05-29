@@ -2,7 +2,7 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
-![version](https://img.shields.io/badge/version-0.6.1-orange)
+![version](https://img.shields.io/badge/version-0.7.0-blue)
 
 ## Install
 
@@ -40,14 +40,17 @@ cargo install projm
 
 ## Setup
 
-Add the shell function to your zsh config:
+Add the shell functions to your zsh config:
 
 ```bash
 projm init
 source ~/.config/zsh/.zshrc
 ```
 
-This automatically installs completions, sets up zoxide, and adds `pg` — a shell function that jumps you into a project and opens your editor.
+This automatically installs completions, sets up zoxide, and adds two shell functions:
+
+- **`pg`** — fuzzy-jump to a project and open your editor
+- **`pn`** — fuzzy-pick a project and run its dev command directly
 
 > [!TIP]
 > **Avoid Command Collisions:** If `pg` conflicts with another command on your system (e.g. PostgreSQL or `pgcli`), you can customize the generated shell function name using the `--alias` (or `-a`) flag:
@@ -79,6 +82,18 @@ projm completions powershell
 
 # Install shell integration + zoxide + completions
 projm init
+
+# Run the current project's dev command directly
+projm run
+
+# Fuzzy-pick a project and run its dev command
+pn
+
+# Run dev command for current directory
+pn .
+
+# Run dev command for a specific path
+pn /path/to/project
 
 # Verify active development tools and environment health
 projm check
@@ -373,33 +388,91 @@ All new stacks respect the same grouping rules — `myapp-android` and `myapp-io
 
 ---
 
-### v0.7 — `projm run`
+### ~~v0.7 — `projm run` + `pn`~~ ✓ shipped
 
-Detect and execute the project's dev command without leaving projm:
+Auto-detect the project stack, predict the dev command, and run it directly — no need to leave the terminal.
+
+**Two entry points:**
 
 ```bash
-projm run
-# reads lockfile → infers package manager
-# reads package.json scripts / Cargo.toml / pyproject.toml
-# → picks the right dev command and runs it
+projm run           # detect + run dev command for current directory
+projm run .         # same (explicit CWD)
+projm run <path>    # detect + run dev command for a given path
+projm run <name>    # match a project name or fuzzy-pick → run it
+
+pn                  # fuzzy-pick a project from the organised base → run it
+pn .                # run dev command for current directory
+pn /path            # run dev command for a specific path
+pn <query>          # pre-filtered picker or direct match → run
 ```
 
-Dev command resolution per stack:
+Instead of opening an editor (like `pg`), `pn` runs the project's dev command directly — streaming stdout/stderr to the terminal, with Ctrl+C support.
 
-| Stack       | Command                     |
-| ----------- | --------------------------- |
-| Rust binary | `cargo run`                 |
-| Hono/TS     | `bun dev` / `pnpm dev`      |
-| React/Vite  | `bun dev` / `pnpm dev`      |
-| Tauri       | `pnpm tauri dev`            |
-| Flutter     | `flutter run`               |
-| Python/uv   | `uv run` / `python main.py` |
-| Go          | `go run .`                  |
+**Dev command resolution:**
 
-Pairs naturally with `pg` — jump to a project and optionally start it in one step:
+| Detected Stack      | Command                              |
+| ------------------- | ------------------------------------ |
+| Rust (Cargo.toml)   | `cargo run`                          |
+| Bun                 | `bun run dev`                        |
+| pnpm                | `pnpm dev`                           |
+| Yarn                | `yarn dev`                           |
+| npm                 | `npm run dev`                        |
+| Tauri               | `<pkg-manager> tauri dev`            |
+| Flutter             | `flutter run`                        |
+| Go                  | `go run .`                           |
+| Python + uv.lock    | `uv run python main.py`              |
+| Python (pip)        | `python main.py` / `python3 main.py` |
+| Ruby on Rails       | `bin/rails server`                   |
+| Elixir/Phoenix      | `mix run --no-halt`                  |
+| Kotlin/Java Gradle  | `./gradlew run`                      |
+| Java Maven          | `mvn compile exec:java`              |
+| Laravel/PHP         | `php artisan serve`                  |
+| C/C++ (CMake)       | `cmake --build build`                |
+| C# / .NET           | `dotnet run`                         |
 
-```bash
-pg --run
+Package.json scripts are read to find `dev` → `start` → fallback.
+
+**`.projm.toml` override:**
+
+Place a config file in the project root to override auto-detection:
+
+```toml
+[run]
+command = "cargo run --features embedded"     # full override
+
+[run.scripts]
+dev   = "cargo run"
+build = "cargo build --release"
+test  = "cargo test"
+
+[run.workspace_packages]                       # label monorepo packages
+api  = "packages/api"
+web  = "apps/web"
+```
+
+**Monorepo support:**
+
+Detects Turborepo, pnpm workspaces, Nx, and Bun workspaces. Shows an interactive picker:
+
+```
+  Select target (turbo):
+  > ▶ Run All
+    ◻ apps/web
+    ◻ apps/api
+    ◻ packages/shared
+    ◻ packages/ui
+```
+
+Auto-resolves workspace packages from `pnpm-workspace.yaml`, bun workspaces, or package.json workspaces. Individual packages can be labelled via `.projm.toml`.
+
+**Shell function:**
+
+Generated automatically by `projm init` alongside `pg`. No `eval` needed — `pn` spawns the dev command directly:
+
+```zsh
+pn() {
+    projm run "$@"
+}
 ```
 
 ---
@@ -414,7 +487,7 @@ pg --run
 | v0.4    | `projm check` Environment diagnostics and doctor mode           | ✓ shipped |
 | v0.5    | `rules.toml` custom classification                               | ✓ shipped |
 | v0.6    | Universal language support (Flutter, Kotlin, Go, Swift, Java, …) | ✓ shipped |
-| v0.7    | `projm run` — detect and launch the project's dev command        | planned   |
+| v0.7    | `projm run` + `pn` — detect and launch the project's dev command  | ✓ shipped |
 
 ---
 

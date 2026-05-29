@@ -11,6 +11,7 @@ mod blueprints;
 mod check;
 mod rules;
 mod clone;
+mod run;
 
 use anyhow::Result;
 use clap::Parser;
@@ -31,6 +32,7 @@ fn main() -> Result<()> {
         }
         Commands::Blueprint { sub } => blueprints::run(sub),
         Commands::Check => check::run(),
+        Commands::Run { path_or_query } => run::run(path_or_query),
         Commands::Clone { url, name, branch, open } => clone::run(&url, name, branch, open),
     }
 }

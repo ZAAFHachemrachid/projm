@@ -392,7 +392,7 @@ fn shell_profile_path(target: InitTarget) -> PathBuf {
 
 fn ensure_projm_block_zsh(content: &str, alias: &str) -> String {
     let block = format!(
-        "{start}\n{alias}() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\nfpath=(\"$HOME/.config/zsh/completions\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
+        "{start}\n{alias}() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\npn() {{\n    projm run \"$@\"\n}}\nfpath=(\"$HOME/.config/zsh/completions\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
         alias = alias,
         start = PROJM_BLOCK_START,
         end = PROJM_BLOCK_END
@@ -420,7 +420,7 @@ fn ensure_projm_block_zsh(content: &str, alias: &str) -> String {
 
 fn ensure_projm_block_powershell(content: &str, alias: &str) -> String {
     let block = format!(
-        "{start}\nfunction {alias} {{\n  $cmd = projm g $args 2>$null\n  if ($cmd) {{ Invoke-Expression $cmd }}\n}}\n. \"$HOME/.config/powershell/completions/projm.ps1\"\n{end}\n",
+        "{start}\nfunction {alias} {{\n  $cmd = projm g $args 2>$null\n  if ($cmd) {{ Invoke-Expression $cmd }}\n}}\nfunction pn {{\n  projm run $args\n}}\n. \"$HOME/.config/powershell/completions/projm.ps1\"\n{end}\n",
         alias = alias,
         start = PROJM_BLOCK_START,
         end = PROJM_BLOCK_END
@@ -535,10 +535,12 @@ mod tests {
         let block_zsh = ensure_projm_block_zsh("", "pj");
         assert!(block_zsh.contains("pj() {"));
         assert!(!block_zsh.contains("pg() {"));
+        assert!(block_zsh.contains("pn() {"));
 
         let block_ps = ensure_projm_block_powershell("", "pj");
         assert!(block_ps.contains("function pj {"));
         assert!(!block_ps.contains("function pg {"));
+        assert!(block_ps.contains("function pn {"));
     }
 
     #[test]
