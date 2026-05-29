@@ -80,11 +80,13 @@ pub fn run(path_or_query: Option<String>) -> Result<()> {
 
     // Walk up looking for monorepo root
     if let Some(mono_root) = find_monorepo_root(project_path) {
-        if mono_root != *project_path {
-            eprintln!("  {} monorepo root detected at {}", "→".dimmed(), mono_root.display());
+        if mono_root == *project_path {
+            // At the monorepo root → show workspace picker (or run all)
+            let cfg = load_run_config(&mono_root);
+            return run_monorepo(&mono_root, &cfg);
         }
-        let cfg = load_run_config(&mono_root);
-        return run_monorepo(&mono_root, &cfg);
+        // Inside a specific workspace package → run it directly
+        eprintln!("  {} using workspace package at {}", "→".dimmed(), project_path.display());
     }
 
     // Check for .projm.toml override in the project dir
@@ -933,36 +935,67 @@ fn resolve_monorepo_root_command(
         }
     }
 
-    match tool {
+    let cmd = match tool {
         MonorepoTool::Turbo => {
             if let Some(pkg) = package {
-                Ok(format!("turbo run dev --filter={}", pkg))
+                format!("turbo run dev --filter={}", pkg)
             } else {
-                Ok("turbo run dev".to_string())
+                "turbo run dev".to_string()
             }
         }
         MonorepoTool::PnpmWorkspace => {
             if let Some(pkg) = package {
-                Ok(format!("pnpm --filter {} dev", pkg))
+                format!("pnpm --filter {} dev", pkg)
             } else {
-                Ok("pnpm -r dev".to_string())
+                "pnpm -r dev".to_string()
             }
         }
         MonorepoTool::Nx => {
             if let Some(pkg) = package {
-                Ok(format!("nx run {}:dev", pkg))
+                format!("nx run {}:dev", pkg)
             } else {
-                Ok("nx run-many --target=dev".to_string())
+                "nx run-many --target=dev".to_string()
             }
         }
         MonorepoTool::BunWorkspace => {
             if let Some(pkg) = package {
-                Ok(format!("bun run --filter {} dev", pkg))
+                format!("bun run --filter {} dev", pkg)
             } else {
-                Ok("bun run dev".to_string())
+                "bun run dev".to_string()
             }
         }
+    };
+
+    // If the tool binary isn't on PATH, prefix with the package manager
+    // so e.g. `turbo run dev` becomes `pnpm turbo run dev`.
+    let tool_binary = match tool {
+        MonorepoTool::Turbo => "turbo",
+        MonorepoTool::Nx => "nx",
+        // pnpm and bun ARE the package manager — no prefix needed
+        MonorepoTool::PnpmWorkspace | MonorepoTool::BunWorkspace => return Ok(cmd),
+    };
+
+    Ok(wrap_tool_command(root, tool_binary, &cmd))
+}
+
+/// If `tool_binary` isn't directly on PATH, prefix with the project's package
+/// manager so e.g. `turbo run dev` → `pnpm turbo run dev` or `npx turbo run dev`.
+fn wrap_tool_command(root: &Path, tool_binary: &str, cmd: &str) -> String {
+    if has_binary(tool_binary) {
+        return cmd.to_string();
     }
+    let pm = detect_package_manager(root);
+    match pm {
+        PackageManager::Bun => format!("bun x {}", cmd),
+        PackageManager::Pnpm => format!("pnpm {}", cmd),
+        PackageManager::Yarn => format!("yarn {}", cmd),
+        PackageManager::Npm => format!("npx {}", cmd),
+    }
+}
+
+fn has_binary(name: &str) -> bool {
+    std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+        .any(|p| p.join(name).exists())
 }
 
 // ── .projm.toml loading ────────────────────────────────────────────────────────
