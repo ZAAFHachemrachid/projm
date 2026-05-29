@@ -4,13 +4,13 @@ use projm_core::{check, classify, organize};
 use tauri::Emitter;
 use tokio::sync::Mutex;
 use std::sync::Arc;
-use tokio::process::ChildStdin;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use std::io::{Read, Write};
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
 // ── Types & Global State ──────────────────────────────────────────────────────
 
 pub struct TerminalState {
-    pub stdin: Arc<Mutex<Option<ChildStdin>>>,
+    pub writer: Arc<Mutex<Option<Box<dyn std::io::Write + Send>>>>,
 }
 
 #[derive(serde::Serialize)]
@@ -85,6 +85,17 @@ async fn cmd_spawn_terminal(
     state: tauri::State<'_, TerminalState>,
     window: tauri::Window,
 ) -> Result<(), String> {
+    let pty_system = native_pty_system();
+
+    let pair = pty_system
+        .openpty(PtySize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| e.to_string())?;
+
     let shell_path = if std::path::Path::new("/bin/zsh").exists() {
         "/bin/zsh"
     } else if std::path::Path::new("/bin/bash").exists() {
@@ -93,46 +104,26 @@ async fn cmd_spawn_terminal(
         "/bin/sh"
     };
 
-    let mut child = tokio::process::Command::new(shell_path)
-        .arg("-i")
-        .current_dir(&cwd)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| e.to_string())?;
+    let mut cmd = CommandBuilder::new(shell_path);
+    cmd.cwd(cwd);
 
-    let stdin = child.stdin.take().ok_or("Failed to open stdin")?;
-    let mut stdout = child.stdout.take().ok_or("Failed to open stdout")?;
-    let mut stderr = child.stderr.take().ok_or("Failed to open stderr")?;
+    let _child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
 
-    let mut state_stdin = state.stdin.lock().await;
-    *state_stdin = Some(stdin);
+    let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
+    let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
+
+    let mut state_writer = state.writer.lock().await;
+    *state_writer = Some(writer);
 
     let window_clone = window.clone();
-    tokio::spawn(async move {
-        let mut buffer = [0; 1024];
+    std::thread::spawn(move || {
+        let mut buffer = [0u8; 1024];
         loop {
-            match stdout.read(&mut buffer).await {
+            match reader.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(n) => {
                     let text = String::from_utf8_lossy(&buffer[..n]).to_string();
                     let _ = window_clone.emit("terminal-data", text);
-                }
-                Err(_) => break,
-            }
-        }
-    });
-
-    let window_clone2 = window.clone();
-    tokio::spawn(async move {
-        let mut buffer = [0; 1024];
-        loop {
-            match stderr.read(&mut buffer).await {
-                Ok(0) => break,
-                Ok(n) => {
-                    let text = String::from_utf8_lossy(&buffer[..n]).to_string();
-                    let _ = window_clone2.emit("terminal-data", text);
                 }
                 Err(_) => break,
             }
@@ -147,10 +138,10 @@ async fn cmd_write_terminal(
     input: String,
     state: tauri::State<'_, TerminalState>,
 ) -> Result<(), String> {
-    let mut stdin_lock = state.stdin.lock().await;
-    if let Some(ref mut stdin) = *stdin_lock {
-        stdin.write_all(input.as_bytes()).await.map_err(|e| e.to_string())?;
-        stdin.flush().await.map_err(|e| e.to_string())?;
+    let mut writer_lock = state.writer.lock().await;
+    if let Some(ref mut writer) = *writer_lock {
+        writer.write_all(input.as_bytes()).map_err(|e| e.to_string())?;
+        writer.flush().map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -224,6 +215,12 @@ fn cmd_scan_directory(path: String, dry_run: bool) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn cmd_set_base(path: String) -> Result<(), String> {
+    projm_core::config::set_base(&std::path::PathBuf::from(&path)).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn cmd_check_environment() -> Result<String, String> {
     check::run().map_err(|e| e.to_string())?;
     Ok("ok".into())
@@ -265,11 +262,12 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .manage(TerminalState {
-            stdin: Arc::new(Mutex::new(None)),
+            writer: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             cmd_scan_directory,
             cmd_check_environment,
+            cmd_set_base,
             cmd_get_editors,
             cmd_get_config,
             cmd_classify_project,
