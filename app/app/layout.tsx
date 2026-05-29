@@ -1,7 +1,4 @@
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,11 +11,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Projm — Project Organizer",
-  description: "Desktop GUI for projm — scan, classify, and navigate your projects",
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,21 +19,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex">
-        <SidebarProvider>
-          <AppSidebar />
-          <main className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2 border-b">
-              <SidebarTrigger />
-              <span className="text-sm font-medium">Projm</span>
-            </div>
-            <div className="flex-1 overflow-auto p-6">
-              {children}
-            </div>
-          </main>
-        </SidebarProvider>
+      <body className="h-full bg-background text-foreground overflow-hidden">
+        {children}
       </body>
     </html>
   );
