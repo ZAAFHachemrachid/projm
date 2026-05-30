@@ -466,7 +466,7 @@ export default function WorkspacePage() {
     setSearchOpen(false);
   });
 
-  useHotkey("Mod+Comma", (e) => {
+  useHotkey("Mod+Comma" as any, (e: KeyboardEvent) => {
     e.preventDefault();
     router.push("/settings");
   });
