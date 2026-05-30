@@ -241,14 +241,6 @@ fn cmd_get_editors() -> Vec<serde_json::Value> {
 }
 
 #[tauri::command]
-fn cmd_get_config() -> serde_json::Value {
-    let cfg = projm_core::config::load();
-    serde_json::json!({
-        "base": cfg.base.to_string_lossy(),
-    })
-}
-
-#[tauri::command]
 fn cmd_classify_project(path: String) -> Result<String, String> {
     let path = std::path::Path::new(&path);
     let custom_rules = projm_core::rules::load_rules();
@@ -256,11 +248,121 @@ fn cmd_classify_project(path: String) -> Result<String, String> {
     Ok(category.dir_name().to_string())
 }
 
+#[tauri::command]
+fn cmd_set_categories(categories: Vec<String>) -> Result<(), String> {
+    projm_core::config::set_categories(categories).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn cmd_get_config() -> serde_json::Value {
+    let cfg = projm_core::config::load();
+    let categories = cfg.categories.unwrap_or_else(|| vec![
+        "apps".to_string(),
+        "services".to_string(),
+        "ui".to_string(),
+        "embedded".to_string(),
+        "ml".to_string(),
+        "tools".to_string(),
+        "labs".to_string(),
+        "content".to_string(),
+    ]);
+    serde_json::json!({
+        "base": cfg.base.to_string_lossy(),
+        "categories": categories,
+    })
+}
+
+#[tauri::command]
+fn cmd_get_rules_raw() -> Result<String, String> {
+    projm_core::rules::read_rules_raw()
+}
+
+#[tauri::command]
+fn cmd_save_rules_raw(content: String) -> Result<(), String> {
+    projm_core::rules::save_rules_raw(&content)
+}
+
+#[derive(serde::Serialize)]
+struct FileEntry {
+    name: String,
+    path: String,
+    is_dir: bool,
+    git_status: Option<String>,
+}
+
+#[tauri::command]
+fn cmd_read_dir(path: String) -> Result<Vec<FileEntry>, String> {
+    let dir_path = std::path::Path::new(&path);
+    if !dir_path.exists() {
+        return Err("Path does not exist".into());
+    }
+
+    let mut entries = Vec::new();
+    let read_entries = std::fs::read_dir(dir_path).map_err(|e| e.to_string())?;
+
+    // Try to get git statuses for this directory
+    let mut git_statuses = std::collections::HashMap::new();
+    if let Ok(output) = std::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(dir_path)
+        .output()
+    {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                if line.len() > 3 {
+                    let status = line[..2].trim().to_string();
+                    let file_path = line[3..].trim().to_string();
+                    git_statuses.insert(file_path, status);
+                }
+            }
+        }
+    }
+
+    for entry in read_entries.filter_map(|e| e.ok()) {
+        let entry_path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        if name.starts_with('.') && name != ".github" && name != ".agents" && name != ".impeccable" && name != ".gitignore" {
+            continue;
+        }
+
+        let is_dir = entry_path.is_dir();
+        
+        let mut git_status = None;
+        for (g_path, status) in &git_statuses {
+            if g_path == &name || g_path.starts_with(&format!("{}/", name)) {
+                git_status = Some(status.clone());
+                break;
+            }
+        }
+
+        entries.push(FileEntry {
+            name,
+            path: entry_path.to_string_lossy().to_string(),
+            is_dir,
+            git_status,
+        });
+    }
+
+    entries.sort_by(|a, b| {
+        if a.is_dir == b.is_dir {
+            a.name.to_lowercase().cmp(&b.name.to_lowercase())
+        } else {
+            b.is_dir.cmp(&a.is_dir)
+        }
+    });
+
+    Ok(entries)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(TerminalState {
             writer: Arc::new(Mutex::new(None)),
         })
@@ -274,6 +376,10 @@ pub fn run() {
             cmd_spawn_terminal,
             cmd_write_terminal,
             cmd_list_projects,
+            cmd_set_categories,
+            cmd_get_rules_raw,
+            cmd_save_rules_raw,
+            cmd_read_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running projm tauri application");

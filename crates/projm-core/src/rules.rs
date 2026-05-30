@@ -30,24 +30,32 @@ pub struct ValidatedRule {
     pub category: Category,
 }
 
-fn rules_path() -> PathBuf {
+pub fn rules_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("projm/rules.toml")
 }
 
-fn parse_category(s: &str) -> Option<Category> {
-    match s.to_lowercase().as_str() {
-        "apps" => Some(Category::Apps),
-        "services" => Some(Category::Services),
-        "ui" => Some(Category::Ui),
-        "embedded" => Some(Category::Embedded),
-        "ml" => Some(Category::Ml),
-        "tools" => Some(Category::Tools),
-        "labs" => Some(Category::Labs),
-        "content" => Some(Category::Content),
-        _ => None,
+pub fn read_rules_raw() -> Result<String, String> {
+    let path = rules_path();
+    if !path.exists() {
+        let _ = init_default_rules();
     }
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+pub fn save_rules_raw(content: &str) -> Result<(), String> {
+    let _parsed: RulesConfig = toml::from_str(content).map_err(|e| format!("Invalid TOML/Rules syntax: {}", e))?;
+    let path = rules_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn parse_category(s: &str) -> Option<Category> {
+    Some(s.to_string().into())
 }
 
 pub fn load_rules() -> Vec<ValidatedRule> {

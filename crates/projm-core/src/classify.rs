@@ -4,7 +4,7 @@ use std::path::Path;
 
 // ── Category ─────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Category {
     Apps,
     Services,
@@ -14,10 +14,52 @@ pub enum Category {
     Tools,
     Labs,
     Content,
+    Custom(String),
+}
+
+impl serde::Serialize for Category {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.dir_name())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Category {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(s.into())
+    }
+}
+
+impl From<String> for Category {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "apps" => Category::Apps,
+            "services" => Category::Services,
+            "ui" => Category::Ui,
+            "embedded" => Category::Embedded,
+            "ml" => Category::Ml,
+            "tools" => Category::Tools,
+            "labs" => Category::Labs,
+            "content" => Category::Content,
+            other => Category::Custom(other.to_string()),
+        }
+    }
+}
+
+impl From<&str> for Category {
+    fn from(s: &str) -> Self {
+        s.to_string().into()
+    }
 }
 
 impl Category {
-    pub fn dir_name(&self) -> &'static str {
+    pub fn dir_name(&self) -> &str {
         match self {
             Self::Apps     => "apps",
             Self::Services => "services",
@@ -27,6 +69,7 @@ impl Category {
             Self::Tools    => "tools",
             Self::Labs     => "labs",
             Self::Content  => "content",
+            Self::Custom(s) => s,
         }
     }
 
@@ -42,20 +85,35 @@ impl Category {
             Self::Tools    => s.white().bold().to_string(),
             Self::Labs     => s.truecolor(255, 100, 50).bold().to_string(),
             Self::Content  => s.truecolor(255, 105, 180).bold().to_string(),
+            Self::Custom(_) => s.truecolor(150, 150, 150).bold().to_string(),
         }
     }
 
-    pub fn all() -> &'static [Self] {
-        &[
-            Self::Apps,
-            Self::Services,
-            Self::Ui,
-            Self::Embedded,
-            Self::Ml,
-            Self::Tools,
-            Self::Labs,
-            Self::Content,
-        ]
+    pub fn all() -> Vec<Self> {
+        let cfg = crate::config::load();
+        cfg.categories
+            .unwrap_or_else(|| vec![
+                "apps".to_string(),
+                "services".to_string(),
+                "ui".to_string(),
+                "embedded".to_string(),
+                "ml".to_string(),
+                "tools".to_string(),
+                "labs".to_string(),
+                "content".to_string(),
+            ])
+            .into_iter()
+            .map(|s| s.into())
+            .collect()
+    }
+
+    pub fn coerce_to_active(self) -> Self {
+        let active = Self::all();
+        if active.contains(&self) {
+            self
+        } else {
+            Self::Custom("undefined".to_string())
+        }
     }
 }
 

@@ -376,5 +376,23 @@ fn category_dir_names_are_stable() {
 
 #[test]
 fn category_all_has_eight_variants() {
-    assert_eq!(Category::all().len(), 8);
+    assert!(Category::all().len() >= 8);
+}
+
+#[test]
+fn test_custom_category_coercion_and_serialization() {
+    // 1. Serialization roundtrip
+    let cat = Category::from("experiments");
+    assert_eq!(cat.dir_name(), "experiments");
+    
+    let serialized = serde_json::to_string(&cat).unwrap();
+    assert_eq!(serialized, "\"experiments\"");
+    
+    let deserialized: Category = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(deserialized.dir_name(), "experiments");
+
+    // 2. Coercion fallback
+    // Since "experiments" is not in default active categories list, it should coerce to "undefined"
+    let coerced = cat.coerce_to_active();
+    assert_eq!(coerced.dir_name(), "undefined");
 }

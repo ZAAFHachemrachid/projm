@@ -75,7 +75,7 @@ pub fn run_with_base(dir: &Path, base: &Path, dry_run: bool) -> Result<()> {
         .map(|e| {
             let src = e.path();
             let name = e.file_name().to_string_lossy().to_string();
-            let cat = classify::classify(&src, &custom_rules);
+            let cat = classify::classify(&src, &custom_rules).coerce_to_active();
             (src, name, cat)
         })
         .collect();
@@ -283,7 +283,7 @@ pub fn organize_single(src: &Path) -> Result<PathBuf> {
         .to_string_lossy()
         .to_string();
     let custom_rules = crate::rules::load_rules();
-    let cat = classify::classify(src, &custom_rules);
+    let cat = classify::classify(src, &custom_rules).coerce_to_active();
 
     // Resolve destination without grouping (empty prefix_count)
     let prefix_count = HashMap::new();

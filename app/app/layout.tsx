@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Titlebar } from "@/components/titlebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,8 +22,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="h-full bg-background text-foreground overflow-hidden">
-        {children}
+      <body className="h-full bg-background text-foreground overflow-hidden flex flex-col">
+        <Titlebar />
+        <div className="flex-1 min-h-0">
+          {children}
+        </div>
       </body>
     </html>
   );
