@@ -39,6 +39,12 @@ pub enum Commands {
         /// Run in non-interactive mode, bypassing the onboarding wizard
         #[arg(long)]
         non_interactive: bool,
+        /// Override the shell target to configure
+        #[arg(short = 's', long, value_enum)]
+        shell: Option<crate::completions::CompletionShell>,
+        /// Override the shell profile path to update
+        #[arg(short = 'p', long)]
+        profile_path: Option<PathBuf>,
     },
     /// Print shell completion script for a shell
     Completions {

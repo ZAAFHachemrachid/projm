@@ -16,7 +16,9 @@ fn main() -> Result<()> {
         Commands::Init {
             alias,
             non_interactive,
-        } => init_setup::run(&alias, non_interactive),
+            shell,
+            profile_path,
+        } => init_setup::run(&alias, non_interactive, shell, profile_path),
         Commands::Completions { shell } => completions::emit(shell),
         Commands::SetBase { path } => projm_core::config::set_base(&path),
         Commands::Editors => {

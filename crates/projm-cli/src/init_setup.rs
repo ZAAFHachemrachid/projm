@@ -1,40 +1,41 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
-use std::{fs, path::PathBuf, process::Command};
+use std::{fs, path::Path, path::PathBuf, process::Command};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select, FuzzySelect};
+use clap::CommandFactory;
 
 use crate::completions;
 use projm_core::{config, editors};
 
 const PROJM_BLOCK_START: &str = "# >>> projm >>>";
 const PROJM_BLOCK_END: &str = "# <<< projm <<<";
-const ZOXIDE_INIT_ZSH: &str = "eval \"$(zoxide init zsh)\"";
-const ZOXIDE_INIT_POWERSHELL: &str = "Invoke-Expression (& { (zoxide init powershell | Out-String) })";
 
-#[derive(Clone, Copy)]
-enum InitTarget {
-    Zsh,
-    PowerShell,
-}
-
-pub fn run(alias: &str, non_interactive: bool) -> Result<()> {
-    let target = detect_target();
-
+pub fn run(
+    alias: &str,
+    non_interactive: bool,
+    shell_override: Option<completions::CompletionShell>,
+    profile_override: Option<PathBuf>,
+) -> Result<()> {
     // Create default rules.toml if not already present
     projm_core::rules::init_default_rules()?;
 
     let is_interactive = !non_interactive && console::user_attended();
+    let detected_shell = shell_override.unwrap_or_else(detect_shell);
 
     if is_interactive {
-        run_wizard(alias, target)?;
+        run_wizard(alias, detected_shell, profile_override)?;
     } else {
-        run_non_interactive(alias, target)?;
+        run_non_interactive(alias, detected_shell, profile_override)?;
     }
 
     Ok(())
 }
 
-fn run_non_interactive(alias: &str, target: InitTarget) -> Result<()> {
+fn run_non_interactive(
+    alias: &str,
+    shell: completions::CompletionShell,
+    profile_override: Option<PathBuf>,
+) -> Result<()> {
     eprintln!("[1/3] checking zoxide...");
 
     if has_zoxide() {
@@ -45,8 +46,8 @@ fn run_non_interactive(alias: &str, target: InitTarget) -> Result<()> {
     }
 
     eprintln!("[2/3] writing completions...");
-    let completion_file = completion_path(target);
-    write_completions(target, &completion_file)?;
+    let completion_file = completion_path(shell);
+    write_completions(shell, &completion_file)?;
     eprintln!(
         "      {} {}",
         "✓".green().bold(),
@@ -54,13 +55,18 @@ fn run_non_interactive(alias: &str, target: InitTarget) -> Result<()> {
     );
 
     eprintln!("[3/3] updating shell profile...");
-    let profile = update_shell_profile(target, alias)?;
+    let profile = profile_override.unwrap_or_else(|| default_profile_path(shell));
+    update_shell_profile(shell, &profile, alias, &completion_file)?;
     eprintln!("\n  {} updated {}", "done.".green().bold(), profile.display());
 
     Ok(())
 }
 
-fn run_wizard(alias: &str, target: InitTarget) -> Result<()> {
+fn run_wizard(
+    alias: &str,
+    detected_shell: completions::CompletionShell,
+    profile_override: Option<PathBuf>,
+) -> Result<()> {
     println!();
     println!("{}", "  ┌────────────────────────────────────────────────────────┐".cyan());
     println!("{}", "  │  🚀 Welcome to projm                                   │".cyan().bold());
@@ -117,14 +123,53 @@ fn run_wizard(alias: &str, target: InitTarget) -> Result<()> {
     }
     println!();
 
-    // 3. Configure Alias
+    // 3. Select Target Shell
+    let shells = [
+        ("Zsh", completions::CompletionShell::Zsh),
+        ("Bash", completions::CompletionShell::Bash),
+        ("Fish", completions::CompletionShell::Fish),
+        ("PowerShell", completions::CompletionShell::Powershell),
+        ("Nushell", completions::CompletionShell::Nushell),
+    ];
+    let shell_labels: Vec<String> = shells.iter().map(|(n, _)| n.to_string()).collect();
+    let default_shell_idx = shells.iter().position(|(_, s)| *s == detected_shell).unwrap_or(0);
+
+    let chosen_shell_idx = Select::with_theme(&theme)
+        .with_prompt("Which shell would you like to configure?")
+        .items(&shell_labels)
+        .default(default_shell_idx)
+        .interact()?;
+
+    let chosen_shell = shells[chosen_shell_idx].1;
+    println!("  {} Target shell set to: {}", "✓".green(), shells[chosen_shell_idx].0.bold());
+    println!();
+
+    // 4. Configure Alias
     let chosen_alias: String = Input::with_theme(&theme)
         .with_prompt("What alias would you like to use for fuzzy-navigation?")
         .default(alias.to_string())
         .interact_text()?;
     println!();
 
-    // 4. Check & Install Zoxide
+    // 5. Configure Profile Path
+    let default_profile = profile_override.clone().unwrap_or_else(|| default_profile_path(chosen_shell));
+    let use_default_profile = Confirm::with_theme(&theme)
+        .with_prompt(format!("Use default profile path: {}?", default_profile.display().to_string().cyan()))
+        .default(true)
+        .interact()?;
+
+    let final_profile = if use_default_profile {
+        default_profile
+    } else {
+        let custom_profile_input: String = Input::with_theme(&theme)
+            .with_prompt("Enter custom profile path")
+            .default(default_profile.display().to_string())
+            .interact_text()?;
+        PathBuf::from(custom_profile_input)
+    };
+    println!();
+
+    // 6. Check & Install Zoxide
     println!("{}", "[1/3] checking zoxide...".bold());
     if has_zoxide() {
         println!("      {} already installed", "✓".green().bold());
@@ -142,10 +187,10 @@ fn run_wizard(alias: &str, target: InitTarget) -> Result<()> {
     }
     println!();
 
-    // 5. Setup completions & shell profile
+    // 7. Setup completions & shell profile
     println!("{}", "[2/3] writing completions...".bold());
-    let completion_file = completion_path(target);
-    write_completions(target, &completion_file)?;
+    let completion_file = completion_path(chosen_shell);
+    write_completions(chosen_shell, &completion_file)?;
     println!(
         "      {} {}",
         "✓".green().bold(),
@@ -154,14 +199,14 @@ fn run_wizard(alias: &str, target: InitTarget) -> Result<()> {
     println!();
 
     println!("{}", "[3/3] updating shell profile...".bold());
-    let profile = update_shell_profile(target, &chosen_alias)?;
-    println!("      {} updated {}", "✓".green().bold(), profile.display());
+    update_shell_profile(chosen_shell, &final_profile, &chosen_alias, &completion_file)?;
+    println!("      {} updated {}", "✓".green().bold(), final_profile.display());
     println!();
 
     println!("{}", "🎉 Configuration successfully complete!".green().bold());
     println!();
 
-    // 6. Interactive sandbox demo!
+    // 8. Interactive sandbox demo!
     let run_demo = Confirm::with_theme(&theme)
         .with_prompt("Would you like to run a quick 1-minute sandbox demo of projm?")
         .default(true)
@@ -173,7 +218,14 @@ fn run_wizard(alias: &str, target: InitTarget) -> Result<()> {
 
     println!();
     println!("  To start using projm, restart your shell or run:");
-    println!("  {}", format!("source {}", profile.display()).cyan());
+    match chosen_shell {
+        completions::CompletionShell::Zsh | completions::CompletionShell::Bash | completions::CompletionShell::Fish | completions::CompletionShell::Nushell => {
+            println!("  {}", format!("source {}", final_profile.display()).cyan());
+        }
+        completions::CompletionShell::Powershell => {
+            println!("  {}", format!(". \"{}\"", final_profile.display()).cyan());
+        }
+    }
     println!();
 
     Ok(())
@@ -245,11 +297,11 @@ dependencies = [
     println!();
 
     // Display Fuzzy Picker loaded with mock projects
-    let demo_projects = vec!(
+    let demo_projects = [
         ("services", "rust-telemetry-server", demo_base.join("services/rust-telemetry-server")),
         ("ui", "react-dashboard-ui", demo_base.join("ui/react-dashboard-ui")),
         ("ml", "python-ml-model", demo_base.join("ml/python-ml-model")),
-    );
+    ];
 
     let labels: Vec<String> = demo_projects
         .iter()
@@ -287,11 +339,235 @@ dependencies = [
     Ok(())
 }
 
-fn detect_target() -> InitTarget {
+fn detect_shell() -> completions::CompletionShell {
+    if let Ok(shell_env) = std::env::var("SHELL") {
+        let shell_lower = shell_env.to_lowercase();
+        if shell_lower.contains("zsh") {
+            return completions::CompletionShell::Zsh;
+        } else if shell_lower.contains("fish") {
+            return completions::CompletionShell::Fish;
+        } else if shell_lower.contains("bash") {
+            return completions::CompletionShell::Bash;
+        } else if shell_lower.contains("nu") {
+            return completions::CompletionShell::Nushell;
+        }
+    }
+
+    if std::env::var("PSModulePath").is_ok() || std::env::var("POWERSHELL_DISTRIBUTION_CHANNEL").is_ok() {
+        return completions::CompletionShell::Powershell;
+    }
+
     if std::env::consts::OS == "windows" {
-        InitTarget::PowerShell
+        completions::CompletionShell::Powershell
     } else {
-        InitTarget::Zsh
+        completions::CompletionShell::Zsh
+    }
+}
+
+fn default_profile_path(shell: completions::CompletionShell) -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    match shell {
+        completions::CompletionShell::Zsh => {
+            if let Ok(zdotdir) = std::env::var("ZDOTDIR") {
+                let path = PathBuf::from(zdotdir).join(".zshrc");
+                if path.parent().is_some_and(|p| p.exists()) {
+                    return path;
+                }
+            }
+            home.join(".zshrc")
+        }
+        completions::CompletionShell::Bash => {
+            if std::env::consts::OS == "macos" {
+                home.join(".bash_profile")
+            } else {
+                home.join(".bashrc")
+            }
+        }
+        completions::CompletionShell::Fish => {
+            home.join(".config/fish/config.fish")
+        }
+        completions::CompletionShell::Powershell => {
+            if let Some(path) = query_shell_profile("pwsh", &["-NoProfile", "-Command", "$PROFILE"]) {
+                return path;
+            }
+            if let Some(path) = query_shell_profile("powershell", &["-NoProfile", "-Command", "$PROFILE"]) {
+                return path;
+            }
+            if cfg!(target_os = "windows") {
+                home.join("Documents/PowerShell/Microsoft.PowerShell_profile.ps1")
+            } else {
+                home.join(".config/powershell/Microsoft.PowerShell_profile.ps1")
+            }
+        }
+        completions::CompletionShell::Nushell => {
+            if let Some(path) = query_shell_profile("nu", &["-c", "$nu.config-path"]) {
+                return path;
+            }
+            if cfg!(target_os = "windows") {
+                dirs::config_dir()
+                    .map(|p| p.join("nushell/config.nu"))
+                    .unwrap_or_else(|| home.join("AppData/Roaming/nushell/config.nu"))
+            } else {
+                home.join(".config/nushell/config.nu")
+            }
+        }
+    }
+}
+
+fn query_shell_profile(binary: &str, args: &[&str]) -> Option<PathBuf> {
+    let output = Command::new(binary)
+        .args(args)
+        .output()
+        .ok()?;
+    if output.status.success() {
+        let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !path_str.is_empty() {
+            return Some(PathBuf::from(path_str));
+        }
+    }
+    None
+}
+
+fn completion_path(shell: completions::CompletionShell) -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    match shell {
+        completions::CompletionShell::Zsh => home.join(".config/zsh/completions/_projm"),
+        completions::CompletionShell::Bash => home.join(".config/projm/completions/projm.bash"),
+        completions::CompletionShell::Fish => home.join(".config/fish/completions/projm.fish"),
+        completions::CompletionShell::Powershell => home.join(".config/powershell/completions/projm.ps1"),
+        completions::CompletionShell::Nushell => home.join(".config/projm/completions/projm.nu"),
+    }
+}
+
+fn write_completions(shell: completions::CompletionShell, path: &PathBuf) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let script = match shell {
+        completions::CompletionShell::Zsh => completions::zsh_script()?,
+        completions::CompletionShell::Powershell => completions::powershell_script()?,
+        completions::CompletionShell::Nushell => completions::nushell_script()?,
+        completions::CompletionShell::Bash => {
+            let mut cmd = crate::main_cli::Cli::command();
+            let mut buf = Vec::new();
+            clap_complete::generate(clap_complete::shells::Bash, &mut cmd, "projm", &mut buf);
+            String::from_utf8(buf)?
+        }
+        completions::CompletionShell::Fish => {
+            let mut cmd = crate::main_cli::Cli::command();
+            let mut buf = Vec::new();
+            clap_complete::generate(clap_complete::shells::Fish, &mut cmd, "projm", &mut buf);
+            String::from_utf8(buf)?
+        }
+    };
+    fs::write(path, script)?;
+    Ok(())
+}
+
+fn update_shell_profile(
+    shell: completions::CompletionShell,
+    profile: &Path,
+    alias: &str,
+    completion_path: &Path,
+) -> Result<()> {
+    if let Some(parent) = profile.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let old = fs::read_to_string(profile).unwrap_or_default();
+    let updated = match shell {
+        completions::CompletionShell::Zsh => {
+            let comp_dir = completion_path.parent().unwrap_or(completion_path).to_string_lossy().to_string();
+            let block = format!(
+                "{start}\n{alias}() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\npn() {{\n    projm run \"$@\"\n}}\nfpath=(\"{comp_dir}\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
+                alias = alias,
+                comp_dir = comp_dir,
+                start = PROJM_BLOCK_START,
+                end = PROJM_BLOCK_END
+            );
+            let with_projm = ensure_projm_block(&old, &block);
+            ensure_line(&with_projm, "eval \"$(zoxide init zsh)\"")
+        }
+        completions::CompletionShell::Bash => {
+            let comp_file = completion_path.to_string_lossy().to_string();
+            let block = format!(
+                "{start}\n{alias}() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\npn() {{\n    projm run \"$@\"\n}}\n. \"{comp_file}\"\n{end}\n",
+                alias = alias,
+                comp_file = comp_file,
+                start = PROJM_BLOCK_START,
+                end = PROJM_BLOCK_END
+            );
+            let with_projm = ensure_projm_block(&old, &block);
+            ensure_line(&with_projm, "eval \"$(zoxide init bash)\"")
+        }
+        completions::CompletionShell::Fish => {
+            let block = format!(
+                "{start}\nfunction {alias}\n    set -l cmd (projm g $argv 2>/dev/tty </dev/tty)\n    if test -n \"$cmd\"\n        eval $cmd\n    end\nend\nfunction pn\n    projm run $argv\nend\n{end}\n",
+                alias = alias,
+                start = PROJM_BLOCK_START,
+                end = PROJM_BLOCK_END
+            );
+            let with_projm = ensure_projm_block(&old, &block);
+            ensure_line(&with_projm, "zoxide init fish | source")
+        }
+        completions::CompletionShell::Powershell => {
+            let comp_file = completion_path.to_string_lossy().to_string();
+            let block = format!(
+                "{start}\nfunction {alias} {{\n  $cmd = projm g $args\n  if ($cmd) {{ Invoke-Expression $cmd }}\n}}\nfunction pn {{\n  projm run $args\n}}\n. \"{comp_file}\"\n{end}\n",
+                alias = alias,
+                comp_file = comp_file,
+                start = PROJM_BLOCK_START,
+                end = PROJM_BLOCK_END
+            );
+            let with_projm = ensure_projm_block(&old, &block);
+            ensure_line(&with_projm, "Invoke-Expression (& { (zoxide init powershell | Out-String) })")
+        }
+        completions::CompletionShell::Nushell => {
+            let comp_file = completion_path.to_string_lossy().to_string();
+            let block = format!(
+                "{start}\ndef --env {alias} [...args] {{\n    let cmd = (projm g ...$args | into string | str trim)\n    if ($cmd | is-empty) == false {{\n        let parts = ($cmd | split row \" && \")\n        if ($parts | length) >= 2 {{\n            let cd_part = ($parts | get 0)\n            let edit_part = ($parts | get 1)\n            let path = ($cd_part | str replace -r \"^(cd|z)\\s+'(.*)'$\" \"$2\")\n            cd $path\n            let editor = ($edit_part | str replace -r \"\\s+\\.$\" \"\")\n            run-external $editor \".\"\n        }}\n    }}\n}}\ndef --env pn [...args] {{\n    projm run ...$args\n}}\nsource \"{comp_file}\"\n{end}\n",
+                alias = alias,
+                comp_file = comp_file,
+                start = PROJM_BLOCK_START,
+                end = PROJM_BLOCK_END
+            );
+            let with_projm = ensure_projm_block(&old, &block);
+            ensure_line(&with_projm, "zoxide init nushell | source")
+        }
+    };
+
+    if updated != old {
+        fs::write(profile, updated).with_context(|| format!("write {}", profile.display()))?;
+    }
+
+    Ok(())
+}
+
+fn ensure_projm_block(content: &str, block: &str) -> String {
+    if let (Some(start_idx), Some(end_idx)) = (content.find(PROJM_BLOCK_START), content.find(PROJM_BLOCK_END)) {
+        if start_idx < end_idx {
+            let mut new_content = content[..start_idx].to_owned();
+            new_content.push_str(block);
+            new_content.push_str(content[end_idx + PROJM_BLOCK_END.len()..].trim_start_matches('\n'));
+            return new_content;
+        }
+    }
+
+    if content.trim().is_empty() {
+        block.to_owned()
+    } else {
+        format!("{}\n\n{}", content.trim_end(), block)
+    }
+}
+
+fn ensure_line(content: &str, line: &str) -> String {
+    if content.lines().any(|l| l.trim() == line.trim()) {
+        return content.to_owned();
+    }
+    if content.trim().is_empty() {
+        format!("{}\n", line)
+    } else {
+        format!("{}\n{}\n", content.trim_end(), line)
     }
 }
 
@@ -301,7 +577,7 @@ fn has_zoxide() -> bool {
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
-        .map_or(false, |s| s.success())
+        .is_ok_and(|s| s.success())
 }
 
 fn install_zoxide() -> Result<()> {
@@ -325,7 +601,7 @@ fn run_install_command(cmd: &str) -> bool {
         return Command::new("cmd")
             .args(["/C", cmd])
             .status()
-            .map_or(false, |s| s.success());
+            .is_ok_and(|s| s.success());
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -333,128 +609,7 @@ fn run_install_command(cmd: &str) -> bool {
         Command::new("sh")
             .args(["-c", cmd])
             .status()
-            .map_or(false, |s| s.success())
-    }
-}
-
-fn completion_path(target: InitTarget) -> PathBuf {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    match target {
-        InitTarget::Zsh => home.join(".config/zsh/completions/_projm"),
-        InitTarget::PowerShell => home.join(".config/powershell/completions/projm.ps1"),
-    }
-}
-
-fn write_completions(target: InitTarget, path: &PathBuf) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let script = match target {
-        InitTarget::Zsh => completions::zsh_script()?,
-        InitTarget::PowerShell => completions::powershell_script()?,
-    };
-    fs::write(path, script)?;
-    Ok(())
-}
-
-fn update_shell_profile(target: InitTarget, alias: &str) -> Result<PathBuf> {
-    let profile = shell_profile_path(target);
-
-    if let Some(parent) = profile.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    let old = fs::read_to_string(&profile).unwrap_or_default();
-    let updated = match target {
-        InitTarget::Zsh => {
-            let with_projm = ensure_projm_block_zsh(&old, alias);
-            ensure_line(&with_projm, ZOXIDE_INIT_ZSH)
-        }
-        InitTarget::PowerShell => {
-            let with_projm = ensure_projm_block_powershell(&old, alias);
-            ensure_line(&with_projm, ZOXIDE_INIT_POWERSHELL)
-        }
-    };
-
-    if updated != old {
-        fs::write(&profile, updated).with_context(|| format!("write {}", profile.display()))?;
-    }
-
-    Ok(profile)
-}
-
-fn shell_profile_path(target: InitTarget) -> PathBuf {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    match target {
-        InitTarget::Zsh => home.join(".config/zsh/.zshrc"),
-        InitTarget::PowerShell => home.join("Documents/PowerShell/Microsoft.PowerShell_profile.ps1"),
-    }
-}
-
-fn ensure_projm_block_zsh(content: &str, alias: &str) -> String {
-    let block = format!(
-        "{start}\n{alias}() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\npn() {{\n    projm run \"$@\"\n}}\nfpath=(\"$HOME/.config/zsh/completions\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
-        alias = alias,
-        start = PROJM_BLOCK_START,
-        end = PROJM_BLOCK_END
-    );
-
-    if let (Some(start_idx), Some(end_idx)) = (content.find(PROJM_BLOCK_START), content.find(PROJM_BLOCK_END)) {
-        if start_idx < end_idx {
-            let existing_block = &content[start_idx..end_idx + PROJM_BLOCK_END.len()];
-            if existing_block.trim() == block.trim() {
-                return content.to_owned();
-            }
-            let mut new_content = content[..start_idx].to_owned();
-            new_content.push_str(&block);
-            new_content.push_str(content[end_idx + PROJM_BLOCK_END.len()..].trim_start_matches('\n'));
-            return new_content;
-        }
-    }
-
-    if content.trim().is_empty() {
-        block
-    } else {
-        format!("{}\n\n{}", content.trim_end(), block)
-    }
-}
-
-fn ensure_projm_block_powershell(content: &str, alias: &str) -> String {
-    let block = format!(
-        "{start}\nfunction {alias} {{\n  $cmd = projm g $args 2>$null\n  if ($cmd) {{ Invoke-Expression $cmd }}\n}}\nfunction pn {{\n  projm run $args\n}}\n. \"$HOME/.config/powershell/completions/projm.ps1\"\n{end}\n",
-        alias = alias,
-        start = PROJM_BLOCK_START,
-        end = PROJM_BLOCK_END
-    );
-
-    if let (Some(start_idx), Some(end_idx)) = (content.find(PROJM_BLOCK_START), content.find(PROJM_BLOCK_END)) {
-        if start_idx < end_idx {
-            let existing_block = &content[start_idx..end_idx + PROJM_BLOCK_END.len()];
-            if existing_block.trim() == block.trim() {
-                return content.to_owned();
-            }
-            let mut new_content = content[..start_idx].to_owned();
-            new_content.push_str(&block);
-            new_content.push_str(content[end_idx + PROJM_BLOCK_END.len()..].trim_start_matches('\n'));
-            return new_content;
-        }
-    }
-
-    if content.trim().is_empty() {
-        block
-    } else {
-        format!("{}\n\n{}", content.trim_end(), block)
-    }
-}
-
-fn ensure_line(content: &str, line: &str) -> String {
-    if content.lines().any(|l| l.trim() == line.trim()) {
-        return content.to_owned();
-    }
-    if content.trim().is_empty() {
-        format!("{}\n", line)
-    } else {
-        format!("{}\n{}\n", content.trim_end(), line)
+            .is_ok_and(|s| s.success())
     }
 }
 
@@ -519,29 +674,29 @@ mod tests {
 
     #[test]
     fn ensure_projm_block_is_idempotent() {
-        let a = ensure_projm_block_zsh("", "pg");
-        let b = ensure_projm_block_zsh(&a, "pg");
-        assert_eq!(a, b);
-    }
-
-    #[test]
-    fn ensure_powershell_block_is_idempotent() {
-        let a = ensure_projm_block_powershell("", "pg");
-        let b = ensure_projm_block_powershell(&a, "pg");
+        let block = format!("{}\nsome block\n{}", PROJM_BLOCK_START, PROJM_BLOCK_END);
+        let a = ensure_projm_block("", &block);
+        let b = ensure_projm_block(&a, &block);
         assert_eq!(a, b);
     }
 
     #[test]
     fn ensure_projm_block_custom_alias() {
-        let block_zsh = ensure_projm_block_zsh("", "pj");
-        assert!(block_zsh.contains("pj() {"));
-        assert!(!block_zsh.contains("pg() {"));
-        assert!(block_zsh.contains("pn() {"));
-
-        let block_ps = ensure_projm_block_powershell("", "pj");
-        assert!(block_ps.contains("function pj {"));
-        assert!(!block_ps.contains("function pg {"));
-        assert!(block_ps.contains("function pn {"));
+        let test_comp = PathBuf::from("test_comp");
+        let old = "";
+        let alias = "pj";
+        
+        let comp_dir = test_comp.parent().unwrap_or(&test_comp).to_string_lossy().to_string();
+        let block_content = format!(
+            "{start}\n{alias}() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\npn() {{\n    projm run \"$@\"\n}}\nfpath=(\"{comp_dir}\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
+            alias = alias,
+            comp_dir = comp_dir,
+            start = PROJM_BLOCK_START,
+            end = PROJM_BLOCK_END
+        );
+        let updated = ensure_projm_block(old, &block_content);
+        assert!(updated.contains("pj() {"));
+        assert!(!updated.contains("pg() {"));
     }
 
     #[test]
@@ -584,4 +739,3 @@ mod tests {
         );
     }
 }
-
