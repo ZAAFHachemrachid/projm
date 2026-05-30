@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -254,6 +256,13 @@ function DirectoryTree({ baseDir, categories }: { baseDir: string; categories: s
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
+
+  // Escape to seamlessly navigate back home
+  useHotkey("Escape", () => {
+    router.push("/");
+  });
+
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
   const [baseDir, setBaseDir] = useState("");
@@ -1189,7 +1198,7 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-zinc-500">Active Build Version</span>
                     <span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                      0.7.0
+                      0.7.1
                     </span>
                   </div>
                   <Separator className="bg-white/5" />

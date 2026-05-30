@@ -32,9 +32,24 @@ pub fn detect_installed() -> Vec<InstalledEditor> {
 }
 
 /// Minimal `which` — no extra crate needed.
+/// On Windows, also probes `.exe`, `.bat`, `.cmd` extensions.
 fn which(binary: &str) -> Option<PathBuf> {
     let path_var = std::env::var_os("PATH")?;
-    std::env::split_paths(&path_var)
-        .map(|dir| dir.join(binary))
-        .find(|p| p.is_file())
+    for dir in std::env::split_paths(&path_var) {
+        let candidate = dir.join(binary);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        // On Windows, the binary may have an extension
+        #[cfg(windows)]
+        {
+            for ext in ["exe", "bat", "cmd"] {
+                let with_ext = candidate.with_extension(ext);
+                if with_ext.is_file() {
+                    return Some(with_ext);
+                }
+            }
+        }
+    }
+    None
 }

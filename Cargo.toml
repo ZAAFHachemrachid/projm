@@ -7,8 +7,13 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/ZAAFHachemrachid/projm"
 authors = ["Rachid Zaaf <[rachidzaaf9@gmailcom]>"]
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

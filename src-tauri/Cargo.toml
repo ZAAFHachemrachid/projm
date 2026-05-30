@@ -7,6 +7,9 @@ repository.workspace = true
 authors.workspace = true
 description = "Desktop GUI for projm — project organizer and navigator"
 
+[package.metadata.dist]
+dist = false
+
 [lib]
 name = "projm_tauri_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]

@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   FolderTree,
   Terminal as TerminalIcon,
@@ -291,7 +293,7 @@ function FileTreeNode({
   return (
     <div className="flex flex-col w-full select-none">
       <button
-        onClick={() => onToggleExpand(entry.path)}
+        onClick={() => entry.is_dir && onToggleExpand(entry.path)}
         className="w-full flex items-center justify-between py-1 px-2 rounded-md hover:bg-[#181a1c]/60 group text-left transition-colors relative"
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
@@ -452,17 +454,22 @@ export default function WorkspacePage() {
     loadData();
   }, []);
 
-  // Listen to keyboard shortcuts (like Ctrl+K for search)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        setSearchOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  const router = useRouter();
+
+  // Bind professional cross-platform hotkeys using TanStack React Hotkeys
+  useHotkey("Mod+K", (e) => {
+    e.preventDefault();
+    setSearchOpen((prev) => !prev);
+  });
+
+  useHotkey("Escape", () => {
+    setSearchOpen(false);
+  });
+
+  useHotkey("Mod+Comma", (e) => {
+    e.preventDefault();
+    router.push("/settings");
+  });
 
   // Run Environment Diagnostics Check
   async function handleDiagnostics() {

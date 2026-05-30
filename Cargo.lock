@@ -2637,7 +2637,7 @@ dependencies = [
 
 [[package]]
 name = "projm_cli"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2654,7 +2654,7 @@ dependencies = [
 
 [[package]]
 name = "projm_core"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "colored",

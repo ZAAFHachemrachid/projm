@@ -190,6 +190,13 @@ pub fn find_binary_path(binary: &str) -> Option<PathBuf> {
                 if candidate.is_file() {
                     return Some(candidate);
                 }
+                // On Windows, the binary may have an extension
+                for ext in ["exe", "bat", "cmd"] {
+                    let with_ext = candidate.with_extension(ext);
+                    if with_ext.is_file() {
+                        return Some(with_ext);
+                    }
+                }
             }
         }
     }

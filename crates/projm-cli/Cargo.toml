@@ -8,6 +8,12 @@ authors.workspace = true
 description = "CLI for projm — project organizer and navigator"
 readme = "../../README.md"
 
+[package.metadata.wix]
+upgrade-guid = "27CEBBA0-C4AB-418F-BE7E-9C8B39DDE8AC"
+path-guid = "844DD3D5-723D-4117-8E50-C2090347F799"
+license = false
+eula = false
+
 [[bin]]
 name = "projm"
 path = "src/main.rs"

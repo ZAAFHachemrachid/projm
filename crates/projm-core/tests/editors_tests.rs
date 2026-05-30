@@ -1,5 +1,7 @@
 use projm_core::editors::{detect_installed, KNOWN_EDITORS};
-use std::{fs, os::unix::fs::PermissionsExt, sync::Mutex};
+use std::{fs, sync::Mutex};
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use tempfile::TempDir;
 
 static PATH_MUTEX: Mutex<()> = Mutex::new(());
@@ -12,9 +14,18 @@ static PATH_MUTEX: Mutex<()> = Mutex::new(());
 fn fake_path(binaries: &[&str]) -> (TempDir, PathGuard) {
     let dir = tempfile::tempdir().unwrap();
     for bin in binaries {
-        let p = dir.path().join(bin);
-        fs::write(&p, "#!/bin/sh\n").unwrap();
-        fs::set_permissions(&p, fs::Permissions::from_mode(0o755)).unwrap();
+        #[cfg(unix)]
+        {
+            let p = dir.path().join(bin);
+            fs::write(&p, "#!/bin/sh\n").unwrap();
+            fs::set_permissions(&p, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        #[cfg(not(unix))]
+        {
+            // On Windows, create a .bat file — which() probes extensions
+            let p = dir.path().join(format!("{}.bat", bin));
+            fs::write(&p, "@echo off\r\n").unwrap();
+        }
     }
     let old = std::env::var("PATH").unwrap_or_default();
 
