@@ -2620,23 +2620,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "projm-tauri"
-version = "0.1.0"
-dependencies = [
- "portable-pty",
- "projm_core",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-shell",
- "tokio",
-]
-
-[[package]]
-name = "projm_cli"
+name = "projm"
 version = "0.7.2"
 dependencies = [
  "anyhow",
@@ -2650,6 +2634,22 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "projm-tauri"
+version = "0.1.0"
+dependencies = [
+ "portable-pty",
+ "projm_core",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-shell",
+ "tokio",
 ]
 
 [[package]]

@@ -60,7 +60,7 @@
 
     <Product
         Id='*'
-        Name='projm_cli'
+        Name='projm'
         UpgradeCode='27CEBBA0-C4AB-418F-BE7E-9C8B39DDE8AC'
         Manufacturer='Rachid Zaaf'
         Language='1033'
@@ -83,11 +83,11 @@
             DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
 
         <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
-        <Property Id='DiskPrompt' Value='projm_cli Installation'/>
+        <Property Id='DiskPrompt' Value='projm Installation'/>
 
         <Directory Id='TARGETDIR' Name='SourceDir'>
             <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='projm_cli'>
+                <Directory Id='APPLICATIONFOLDER' Name='projm'>
                     
                     <!--
                       Enabling the license sidecar file in the installer is a four step process:
