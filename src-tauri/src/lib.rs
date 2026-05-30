@@ -96,15 +96,19 @@ async fn cmd_spawn_terminal(
         })
         .map_err(|e| e.to_string())?;
 
-    let shell_path = if std::path::Path::new("/bin/zsh").exists() {
-        "/bin/zsh"
-    } else if std::path::Path::new("/bin/bash").exists() {
-        "/bin/bash"
+    let shell_path = if cfg!(target_os = "windows") {
+        std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
     } else {
-        "/bin/sh"
+        if std::path::Path::new("/bin/zsh").exists() {
+            "/bin/zsh".to_string()
+        } else if std::path::Path::new("/bin/bash").exists() {
+            "/bin/bash".to_string()
+        } else {
+            "/bin/sh".to_string()
+        }
     };
 
-    let mut cmd = CommandBuilder::new(shell_path);
+    let mut cmd = CommandBuilder::new(&shell_path);
     cmd.cwd(cwd);
 
     let _child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
@@ -296,6 +300,9 @@ fn cmd_read_dir(path: String) -> Result<Vec<FileEntry>, String> {
     let dir_path = std::path::Path::new(&path);
     if !dir_path.exists() {
         return Err("Path does not exist".into());
+    }
+    if !dir_path.is_dir() {
+        return Ok(Vec::new());
     }
 
     let mut entries = Vec::new();
