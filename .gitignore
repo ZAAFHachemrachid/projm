@@ -2,3 +2,9 @@
 app/node_modules/
 app/.next
 app/out
+
+# Agent skills and state
+.agents/
+.omo/
+.impeccable/
+skills-lock.json
