@@ -1,55 +1,9 @@
 use anyhow::Result;
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 use crate::main_cli::BlueprintSubcommands;
+use projm_core::blueprints::{Blueprint, BlueprintsStore};
 use projm_core::organize;
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Blueprint {
-    pub name: String,
-    pub command: String,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct BlueprintsStore {
-    pub blueprints: Vec<Blueprint>,
-}
-
-impl BlueprintsStore {
-    pub fn load() -> Result<Self> {
-        Self::load_from(default_path()?)
-    }
-
-    pub fn save(&self) -> Result<()> {
-        self.save_to(&default_path()?)
-    }
-
-    pub fn load_from(path: PathBuf) -> Result<Self> {
-        if !path.exists() {
-            return Ok(Self::default());
-        }
-        let content = std::fs::read_to_string(&path)?;
-        let store = serde_json::from_str(&content).unwrap_or_default();
-        Ok(store)
-    }
-
-    pub fn save_to(&self, path: &PathBuf) -> Result<()> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let content = serde_json::to_string_pretty(self)?;
-        std::fs::write(path, content)?;
-        Ok(())
-    }
-}
-
-fn default_path() -> Result<PathBuf> {
-    Ok(dirs::config_dir()
-        .ok_or_else(|| anyhow::anyhow!("cannot resolve XDG config dir"))?
-        .join("projm/blueprints.json"))
-}
 
 pub fn run(sub: Option<BlueprintSubcommands>) -> Result<()> {
     match sub {
@@ -94,13 +48,10 @@ fn add() -> Result<()> {
     }
 
     let command: String = Input::with_theme(&theme)
-        .with_prompt("Command Template (use {name} as project name placeholder)")
+        .with_prompt("Command Template (use {name} as optional project name placeholder)")
         .validate_with(|input: &String| -> Result<(), &str> {
             if input.trim().is_empty() {
                 return Err("Command cannot be empty.");
-            }
-            if !input.contains("{name}") {
-                return Err("Command must contain '{name}' placeholder.");
             }
             Ok(())
         })
@@ -189,23 +140,33 @@ fn run_blueprint(name: Option<String>) -> Result<()> {
     println!("  Running blueprint: {}", blueprint.name.cyan().bold());
     println!();
 
-    let project_name: String = Input::with_theme(&theme)
-        .with_prompt("Enter name for your new project")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if input.trim().is_empty() {
-                return Err("Project name cannot be empty.");
-            }
-            if !input
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-            {
-                return Err("Project name must be alphanumeric, dashes, or underscores.");
-            }
-            Ok(())
-        })
-        .interact()?;
+    let has_name_placeholder = blueprint.command.contains("{name}");
 
-    let resolved_command = blueprint.command.replace("{name}", &project_name);
+    let project_name: Option<String> = if has_name_placeholder {
+        let name: String = Input::with_theme(&theme)
+            .with_prompt("Enter name for your new project")
+            .validate_with(|input: &String| -> Result<(), &str> {
+                if input.trim().is_empty() {
+                    return Err("Project name cannot be empty.");
+                }
+                if !input
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+                {
+                    return Err("Project name must be alphanumeric, dashes, or underscores.");
+                }
+                Ok(())
+            })
+            .interact()?;
+        Some(name)
+    } else {
+        None
+    };
+
+    let resolved_command = match &project_name {
+        Some(name) => blueprint.command.replace("{name}", name),
+        None => blueprint.command.clone(),
+    };
 
     println!();
     println!("  Executing command: {}", resolved_command.bold().yellow());
@@ -242,19 +203,20 @@ fn run_blueprint(name: Option<String>) -> Result<()> {
     println!();
 
     // Check if the directory exists in the CWD
-    let new_project_path = std::env::current_dir()?.join(&project_name);
-    if new_project_path.exists() && new_project_path.is_dir() {
+    let project_name_str = project_name.clone().unwrap_or_default();
+    let new_project_path = std::env::current_dir()?.join(&project_name_str);
+    if !project_name_str.is_empty() && new_project_path.exists() && new_project_path.is_dir() {
         let organize = Confirm::with_theme(&theme)
             .with_prompt(format!(
                 "Automatically run 'projm organize' on '{}'?",
-                project_name.cyan()
+                project_name_str.cyan()
             ))
             .default(true)
             .interact()?;
 
         if organize {
             println!();
-            println!("  Organising project '{}'...", project_name);
+            println!("  Organising project '{}'...", project_name_str);
             match organize::organize_single(&new_project_path) {
                 Ok(dest) => {
                     println!(
@@ -408,9 +370,6 @@ fn edit(name: Option<String>) -> Result<()> {
         .validate_with(|input: &String| -> Result<(), &str> {
             if input.trim().is_empty() {
                 return Err("Command cannot be empty.");
-            }
-            if !input.contains("{name}") {
-                return Err("Command must contain '{name}' placeholder.");
             }
             Ok(())
         })

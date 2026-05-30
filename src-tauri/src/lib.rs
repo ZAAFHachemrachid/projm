@@ -1,6 +1,6 @@
 // Projm Tauri backend — desktop GUI for project organization and navigation.
 
-use projm_core::{check, classify, organize};
+use projm_core::{blueprints, check, classify, organize};
 use tauri::Emitter;
 use tokio::sync::Mutex;
 use std::sync::Arc;
@@ -287,6 +287,54 @@ fn cmd_save_rules_raw(content: String) -> Result<(), String> {
     projm_core::rules::save_rules_raw(&content)
 }
 
+// ── Blueprint Commands ────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn cmd_get_blueprints() -> Result<Vec<blueprints::Blueprint>, String> {
+    let store = blueprints::BlueprintsStore::load().map_err(|e| e.to_string())?;
+    Ok(store.blueprints)
+}
+
+#[tauri::command]
+fn cmd_add_blueprint(name: String, command: String) -> Result<(), String> {
+    let mut store = blueprints::BlueprintsStore::load().map_err(|e| e.to_string())?;
+    if store.blueprints.iter().any(|b| b.name == name) {
+        return Err(format!("Blueprint '{}' already exists.", name));
+    }
+    store.blueprints.push(blueprints::Blueprint { name, command });
+    store.save().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn cmd_update_blueprint(old_name: String, name: String, command: String) -> Result<(), String> {
+    let mut store = blueprints::BlueprintsStore::load().map_err(|e| e.to_string())?;
+    let idx = store
+        .blueprints
+        .iter()
+        .position(|b| b.name == old_name)
+        .ok_or_else(|| format!("Blueprint '{}' not found.", old_name))?;
+    if name != old_name && store.blueprints.iter().any(|b| b.name == name) {
+        return Err(format!("Blueprint '{}' already exists.", name));
+    }
+    store.blueprints[idx].name = name;
+    store.blueprints[idx].command = command;
+    store.save().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn cmd_delete_blueprint(name: String) -> Result<(), String> {
+    let mut store = blueprints::BlueprintsStore::load().map_err(|e| e.to_string())?;
+    let len_before = store.blueprints.len();
+    store.blueprints.retain(|b| b.name != name);
+    if store.blueprints.len() == len_before {
+        return Err(format!("Blueprint '{}' not found.", name));
+    }
+    store.save().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[derive(serde::Serialize)]
 struct FileEntry {
     name: String,
@@ -386,6 +434,10 @@ pub fn run() {
             cmd_set_categories,
             cmd_get_rules_raw,
             cmd_save_rules_raw,
+            cmd_get_blueprints,
+            cmd_add_blueprint,
+            cmd_update_blueprint,
+            cmd_delete_blueprint,
             cmd_read_dir,
         ])
         .run(tauri::generate_context!())

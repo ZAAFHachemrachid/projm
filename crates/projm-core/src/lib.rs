@@ -1,3 +1,4 @@
+pub mod blueprints;
 pub mod check;
 pub mod classify;
 pub mod clone;

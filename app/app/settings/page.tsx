@@ -271,6 +271,17 @@ export default function SettingsPage() {
   // Tabs active section state
   const [activeTab, setActiveTab] = useState("general");
 
+  // Blueprints States
+  const [blueprints, setBlueprints] = useState<{ name: string; command: string }[]>([]);
+  const [newBlueprintName, setNewBlueprintName] = useState("");
+  const [newBlueprintCommand, setNewBlueprintCommand] = useState("");
+  const [savingBlueprint, setSavingBlueprint] = useState(false);
+  const [blueprintError, setBlueprintError] = useState<string | null>(null);
+  const [blueprintMessage, setBlueprintMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [editingBlueprint, setEditingBlueprint] = useState<string | null>(null);
+  const [editBlueprintName, setEditBlueprintName] = useState("");
+  const [editBlueprintCommand, setEditBlueprintCommand] = useState("");
+
   // Rules Editor States
   const [rulesRaw, setRulesRaw] = useState("");
   const [rulesList, setRulesList] = useState<CustomRule[]>([]);
@@ -342,10 +353,83 @@ export default function SettingsPage() {
     }
   }
 
+  async function loadBlueprints() {
+    try {
+      const list = await invoke<{ name: string; command: string }[]>("cmd_get_blueprints");
+      setBlueprints(list);
+    } catch (err) {
+      console.error("Failed to load blueprints:", err);
+    }
+  }
+
+  async function handleAddBlueprint() {
+    const name = newBlueprintName.trim();
+    const command = newBlueprintCommand.trim();
+    if (!name || !command) return;
+    setSavingBlueprint(true);
+    setBlueprintError(null);
+    setBlueprintMessage(null);
+    try {
+      await invoke("cmd_add_blueprint", { name, command });
+      await loadBlueprints();
+      setNewBlueprintName("");
+      setNewBlueprintCommand("");
+      setBlueprintMessage({ ok: true, text: `Blueprint '${name}' added successfully!` });
+    } catch (err) {
+      setBlueprintError(String(err));
+      setBlueprintMessage({ ok: false, text: "Failed to add blueprint." });
+    } finally {
+      setSavingBlueprint(false);
+      setTimeout(() => setBlueprintMessage(null), 3000);
+    }
+  }
+
+  function startEditBlueprint(bp: { name: string; command: string }) {
+    setEditingBlueprint(bp.name);
+    setEditBlueprintName(bp.name);
+    setEditBlueprintCommand(bp.command);
+    setBlueprintError(null);
+  }
+
+  async function handleSaveEditBlueprint(oldName: string) {
+    const name = editBlueprintName.trim();
+    const command = editBlueprintCommand.trim();
+    if (!name || !command) return;
+    setSavingBlueprint(true);
+    setBlueprintError(null);
+    setBlueprintMessage(null);
+    try {
+      await invoke("cmd_update_blueprint", { oldName, name, command });
+      await loadBlueprints();
+      setEditingBlueprint(null);
+      setBlueprintMessage({ ok: true, text: `Blueprint '${name}' updated!` });
+    } catch (err) {
+      setBlueprintError(String(err));
+      setBlueprintMessage({ ok: false, text: "Failed to update blueprint." });
+    } finally {
+      setSavingBlueprint(false);
+      setTimeout(() => setBlueprintMessage(null), 3000);
+    }
+  }
+
+  async function handleDeleteBlueprint(name: string) {
+    setBlueprintError(null);
+    setBlueprintMessage(null);
+    try {
+      await invoke("cmd_delete_blueprint", { name });
+      await loadBlueprints();
+      setBlueprintMessage({ ok: true, text: `Blueprint '${name}' deleted.` });
+    } catch (err) {
+      setBlueprintError(String(err));
+      setBlueprintMessage({ ok: false, text: "Failed to delete blueprint." });
+    }
+    setTimeout(() => setBlueprintMessage(null), 3000);
+  }
+
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadConfig(), loadEditors(), loadRules()]);
+      await Promise.all([loadConfig(), loadEditors(), loadRules(), loadBlueprints()]);
       setLoading(false);
     }
     init();
@@ -535,7 +619,8 @@ export default function SettingsPage() {
   const tabs = [
     { id: "general", label: "General", icon: Sliders },
     { id: "categories", label: "Categories", icon: Layers },
-    { id: "rules", label: "Blueprint Rules", icon: Sparkles },
+    { id: "blueprints", label: "Blueprints", icon: Sparkles },
+    { id: "rules", label: "Rules Config", icon: BookOpen },
     { id: "engine", label: "Engine Specs", icon: Info },
   ];
 
@@ -560,7 +645,7 @@ export default function SettingsPage() {
             Settings
           </h1>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Configure workspaces parameters, dynamic folder categories mappings, and custom classification blueprints rules.
+            Configure workspaces, folder categories, classification rules, and project blueprints.
           </p>
         </div>
       </div>
@@ -902,43 +987,179 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* TAB 3: BLUEPRINT RULES (RULE SETTER) */}
+          {/* TAB 3: BLUEPRINTS (PROJECT CREATION TEMPLATES) */}
+          {activeTab === "blueprints" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
+                <CardHeader className="p-6 pb-4">
+                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-indigo-400 flex items-center gap-2.5">
+                    <Sparkles className="size-4.5 text-indigo-400" />
+                    Project Blueprints
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-5">
+                  <p className="text-sm text-zinc-400 leading-relaxed">
+                    Save command templates for scaffolding new projects. Use{" "}
+                    <code className="text-xs bg-zinc-800/60 text-zinc-300 px-1.5 py-0.5 rounded border border-white/5 font-mono">{`{name}`}</code>{" "}
+                    as an optional placeholder — you will be prompted for a project name when running.
+                  </p>
+
+                  {/* Add Blueprint Form */}
+                  <div className="p-4 bg-zinc-900/20 border border-white/5 rounded-xl space-y-3.5">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      New Blueprint
+                    </label>
+                    <div className="space-y-3">
+                      <Input
+                        value={newBlueprintName}
+                        onChange={(e) => { setNewBlueprintName(e.target.value); setBlueprintError(null); }}
+                        placeholder="Blueprint name (e.g. better-t-stack)"
+                        className="text-sm bg-black/40 border-white/5 h-10 focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                      />
+                      <Input
+                        value={newBlueprintCommand}
+                        onChange={(e) => { setNewBlueprintCommand(e.target.value); setBlueprintError(null); }}
+                        placeholder={`Command template (e.g. npx create-t3-app {name})`}
+                        className="text-sm bg-black/40 border-white/5 h-10 font-mono focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                      />
+                      {blueprintError && (
+                        <p className="text-xs text-rose-400 flex items-center gap-1.5">
+                          <AlertCircle className="size-3.5" />
+                          {blueprintError}
+                        </p>
+                      )}
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={handleAddBlueprint}
+                          disabled={!newBlueprintName.trim() || !newBlueprintCommand.trim() || savingBlueprint}
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold h-9 px-4 text-xs transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          <Plus className="size-3.5 mr-1.5" />
+                          {savingBlueprint ? "Adding..." : "Add Blueprint"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Blueprints List */}
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                    {blueprints.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/10 border border-dashed border-white/5 rounded-xl">
+                        <BookOpen className="size-8 text-zinc-600 mb-2" />
+                        <p className="text-xs text-zinc-400">No project blueprints saved yet.</p>
+                        <p className="text-[10px] text-zinc-500 mt-1">Add one above to get started.</p>
+                      </div>
+                    ) : (
+                      blueprints.map((bp, idx) => {
+                        const isEditing = editingBlueprint === bp.name;
+                        return (
+                          <div
+                            key={bp.name}
+                            className="p-4 bg-zinc-900/20 border border-white/5 hover:border-white/10 rounded-xl space-y-3 transition-all"
+                          >
+                            {isEditing ? (
+                              /* Edit Mode */
+                              <div className="space-y-3">
+                                <Input
+                                  value={editBlueprintName}
+                                  onChange={(e) => setEditBlueprintName(e.target.value)}
+                                  placeholder="Blueprint name"
+                                  className="h-8 text-xs bg-black/40 border-white/5 focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                                />
+                                <Input
+                                  value={editBlueprintCommand}
+                                  onChange={(e) => setEditBlueprintCommand(e.target.value)}
+                                  placeholder="Command template"
+                                  className="h-8 text-xs bg-black/40 border-white/5 font-mono focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    onClick={() => setEditingBlueprint(null)}
+                                    variant="ghost"
+                                    className="text-xs text-zinc-400 hover:text-white h-8 px-3"
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleSaveEditBlueprint(bp.name)}
+                                    disabled={!editBlueprintName.trim() || !editBlueprintCommand.trim()}
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold h-8 px-3 transition-all active:scale-95"
+                                  >
+                                    <Save className="size-3 mr-1.5" />
+                                    Save
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              /* View Mode */
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${idx % 2 === 0 ? "bg-indigo-500" : "bg-cyan-500"} shadow-[0_0_6px_rgba(99,102,241,0.5)]`} />
+                                    <span className="font-mono text-sm font-semibold text-zinc-200">{bp.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => startEditBlueprint(bp)}
+                                      className="p-1.5 text-zinc-500 hover:text-white hover:bg-white/5 rounded transition-all"
+                                      title="Edit blueprint"
+                                    >
+                                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteBlueprint(bp.name)}
+                                      className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all"
+                                      title="Delete blueprint"
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="text-[11px] font-mono text-zinc-500 bg-black/30 px-3 py-2 rounded-lg border border-white/5 truncate select-all">
+                                  {bp.command}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {blueprintMessage && (
+                    <div className={`p-3 rounded-lg border text-xs flex items-center gap-2 ${
+                      blueprintMessage.ok
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                        : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                    }`}>
+                      {blueprintMessage.ok ? (
+                        <Check className="size-4 shrink-0" />
+                      ) : (
+                        <AlertCircle className="size-4 shrink-0" />
+                      )}
+                      {blueprintMessage.text}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* TAB 4: RULES CONFIG (FORMERLY BLUEPRINT RULES) */}
           {activeTab === "rules" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
                 <CardHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-950/20 flex flex-row items-center justify-between">
                   <div className="space-y-1">
                     <CardTitle className="text-xs font-bold tracking-widest uppercase text-indigo-400 flex items-center gap-2.5">
-                      <Sparkles className="size-4.5 text-indigo-400 animate-pulse" />
-                      Blueprint Mappings Rules
+                      <BookOpen className="size-4.5 text-indigo-400" />
+                      Classification Rules Config
                     </CardTitle>
                     <p className="text-[10px] text-zinc-500 lowercase leading-none">
-                      Evaluated top to bottom inside ~/.config/projm/rules.toml
+                      Custom classification rules — evaluated top to bottom inside ~/.config/projm/rules.toml
                     </p>
-                  </div>
-
-                  {/* Visual Designer vs Raw TOML Toggle */}
-                  <div className="flex items-center gap-1 bg-black/40 border border-white/5 p-1 rounded-lg shrink-0">
-                    <button
-                      onClick={() => handleToggleRulesMode(true)}
-                      className={`px-2.5 py-1 text-[10px] font-semibold rounded ${
-                        isVisualMode
-                          ? "bg-indigo-600 text-white shadow-sm"
-                          : "text-zinc-400 hover:text-white"
-                      }`}
-                    >
-                      Visual Builder
-                    </button>
-                    <button
-                      onClick={() => handleToggleRulesMode(false)}
-                      className={`px-2.5 py-1 text-[10px] font-semibold rounded ${
-                        !isVisualMode
-                          ? "bg-indigo-600 text-white shadow-sm"
-                          : "text-zinc-400 hover:text-white"
-                      }`}
-                    >
-                      Raw TOML
-                    </button>
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
@@ -1101,7 +1322,7 @@ export default function SettingsPage() {
                           className="text-xs text-indigo-400 hover:text-white hover:bg-white/5 border border-white/5 border-dashed rounded-lg"
                         >
                           <Plus className="size-3.5 mr-1" />
-                          Add Custom Blueprint Rule
+                          Add Custom Rule
                         </Button>
 
                         <Button
@@ -1110,7 +1331,7 @@ export default function SettingsPage() {
                           className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold h-9 px-4 active:scale-95 transition-all"
                         >
                           {savingRules ? (
-                            "Saving Blueprint..."
+                            "Saving Rules..."
                           ) : (
                             <>
                               <Save className="size-3.5 mr-1.5" />
