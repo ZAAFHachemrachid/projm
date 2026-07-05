@@ -38,6 +38,24 @@ If you have the Rust toolchain installed, you can build and install `projm` dire
 cargo install projm
 ```
 
+### 4. Homebrew (macOS/Linux)
+
+```bash
+brew install ZAAFHachemrachid/tap/projm
+```
+
+> [!NOTE]
+> Available starting with the next release (v0.7.5+).
+
+### 5. Arch Linux (AUR)
+
+```bash
+yay -S projm-bin
+```
+
+> [!NOTE]
+> Available starting with the next release (v0.7.5+).
+
 ## Setup
 
 Add the shell functions to your zsh config:
@@ -66,6 +84,12 @@ projm organize ~/Downloads/dump
 
 # Preview without moving anything
 projm organize ~/Downloads/dump --dry-run
+
+# Clone a repo straight into the right category folder under your base dir
+projm clone https://github.com/ZAAFHachemrachid/projm
+
+# Clone a specific branch, rename it, and open it in your editor
+projm clone https://github.com/ZAAFHachemrachid/projm --name projm-dev --branch dev --open
 
 # Fuzzy-pick a project, choose an editor, jump there
 pg
@@ -98,6 +122,30 @@ pn /path/to/project
 # Verify active development tools and environment health
 projm check
 ```
+
+## Desktop App
+
+Prefer a GUI? `projm` also ships as a cross-platform desktop app built with [Tauri](https://tauri.app). It wraps the same organizing engine in a native window:
+
+- **Project browser** — browse your organized base directory by category, with live git status.
+- **Organize / scan** — point it at a folder and preview or apply the same classification the CLI performs.
+- **Blueprints** — create and run project blueprints from the UI instead of the interactive terminal prompt.
+- **Rules editor** — edit your `rules.toml` custom classification rules with validation.
+- **Environment check** — the `projm check` diagnostics, rendered as a live dashboard.
+- **Built-in terminal** — an embedded terminal so you can stay in one window.
+
+### Downloads
+
+Grab the latest installer for your platform from [GitHub Releases](https://github.com/ZAAFHachemrachid/projm/releases). Desktop builds are published under their own `desktop-v*` tags, separate from the CLI release tags.
+
+| Platform | Installer                                    |
+| -------- | -------------------------------------------- |
+| macOS    | `.dmg` (Apple Silicon + Intel)               |
+| Windows  | `.msi` installer + NSIS setup `.exe`         |
+| Linux    | `.AppImage` / `.deb` / `.rpm`                |
+
+> [!NOTE]
+> The desktop app auto-checks for updates on launch — the built-in updater ships with the next desktop release.
 
 ## How it works
 
@@ -185,6 +233,22 @@ projm organize ~/projects
   embedded  rocket-telemetry-fw   dev  *
   ui        pioneers-website      main  ✓
 ```
+
+### `projm clone`
+
+Clone a repository and drop it straight into the correct category folder — no more cloning into a random directory and organizing later.
+
+```bash
+projm clone <url> [--name <name>] [--branch <branch>] [--open]
+```
+
+`projm clone` first clones into a temporary staging directory inside your base directory (so the final move is a fast rename), then classifies the project with the same rules as `organize` and moves it into the right category folder under your base directory. It prints the destination path when done.
+
+- **`--name <name>`** — override the project name. By default the name is derived from the URL (trailing `.git`, query strings, and fragments are stripped, and the last path segment is used).
+- **`--branch <branch>`** — passed through to `git clone --branch` to clone a specific branch.
+- **`--open`** — after organizing, open the project in your editor. It detects installed editors, reuses the last editor you chose for that project (stored in `~/.config/projm/prefs.json`, falling back to the first installed editor), spawns it in the background, and remembers the choice.
+
+Requires `git` on your `$PATH`. If a project with the target name already exists anywhere under your base directory, the clone is aborted so nothing is overwritten.
 
 ### Editor detection
 

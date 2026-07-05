@@ -24,9 +24,18 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY5OUNBQ0NDODMwRUM3MjYKUldRbXh3NkR6S3ljYVlSTks5U28vSDk4MFRDbDNxL3J4b2EvM00rbUVxVVBOVW5DWHBZc3Z1SFUK",
+      "endpoints": [
+        "https://github.com/ZAAFHachemrachid/projm/releases/download/desktop-latest/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

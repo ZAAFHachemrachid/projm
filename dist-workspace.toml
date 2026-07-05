@@ -8,7 +8,11 @@ cargo-dist-version = "0.32.0"
 # CI backends to support
 ci = "github"
 # The installers to generate for each app
-installers = ["shell", "powershell", "msi"]
+installers = ["shell", "powershell", "msi", "homebrew"]
+# A GitHub repo to push Homebrew formulas to
+tap = "ZAAFHachemrachid/homebrew-tap"
+# Publish jobs to run in CI (requires a HOMEBREW_TAP_TOKEN repo secret)
+publish-jobs = ["homebrew"]
 # Target platforms to build apps for (Rust target-triple syntax)
 # aarch64-pc-windows-msvc removed: cargo-dist cross-compiles it in a Linux
 # container where WiX (MSI) is unavailable; Windows ARM runs the x64 build via

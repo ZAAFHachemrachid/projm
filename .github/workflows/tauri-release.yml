@@ -66,7 +66,19 @@ jobs:
         run: cargo install tauri-cli --version "^2" --locked
 
       - name: Build Tauri app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: cargo tauri build --target ${{ matrix.rust_target }}
+
+      # macOS updater archives are emitted as Projm.app.tar.gz on both arches;
+      # rename them per-target so the merged artifact download doesn't collide.
+      - name: Rename macOS updater artifacts
+        if: runner.os == 'macOS'
+        run: |
+          dir="target/${{ matrix.rust_target }}/release/bundle/macos"
+          mv "$dir/Projm.app.tar.gz" "$dir/Projm_${{ matrix.rust_target }}.app.tar.gz"
+          mv "$dir/Projm.app.tar.gz.sig" "$dir/Projm_${{ matrix.rust_target }}.app.tar.gz.sig"
 
       # src-tauri is a workspace member, so bundles land in the workspace-root
       # target/ directory, not src-tauri/target/.
@@ -80,6 +92,7 @@ jobs:
             target/${{ matrix.rust_target }}/release/bundle/deb/*.deb
             target/${{ matrix.rust_target }}/release/bundle/rpm/*.rpm
             target/${{ matrix.rust_target }}/release/bundle/appimage/*.AppImage
+            target/${{ matrix.rust_target }}/release/bundle/appimage/*.AppImage.sig
 
       - name: Upload artifacts (macOS)
         if: runner.os == 'macOS'
@@ -89,6 +102,8 @@ jobs:
           if-no-files-found: error
           path: |
             target/${{ matrix.rust_target }}/release/bundle/dmg/*.dmg
+            target/${{ matrix.rust_target }}/release/bundle/macos/*.app.tar.gz
+            target/${{ matrix.rust_target }}/release/bundle/macos/*.app.tar.gz.sig
 
       - name: Upload artifacts (Windows)
         if: runner.os == 'Windows'
@@ -98,7 +113,9 @@ jobs:
           if-no-files-found: error
           path: |
             target/${{ matrix.rust_target }}/release/bundle/msi/*.msi
+            target/${{ matrix.rust_target }}/release/bundle/msi/*.msi.sig
             target/${{ matrix.rust_target }}/release/bundle/nsis/*.exe
+            target/${{ matrix.rust_target }}/release/bundle/nsis/*.exe.sig
 
   release:
     name: Create Release
@@ -121,6 +138,43 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#desktop-v}" >> "$GITHUB_OUTPUT"
 
+      - name: Generate updater manifest (latest.json)
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ github.ref_name }}"
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+
+          asset_for() {
+            # $1 = glob pattern relative to artifacts/
+            find artifacts -type f -name "$1" ! -name '*.sig' | head -n1
+          }
+
+          add_platform() {
+            # $1 = platform key, $2 = artifact path
+            local key="$1" file="$2"
+            if [ -z "$file" ] || [ ! -f "${file}.sig" ]; then
+              echo "::error::missing updater artifact or signature for ${key}"
+              exit 1
+            fi
+            local name sig
+            name="$(basename "$file")"
+            sig="$(cat "${file}.sig")"
+            jq --arg key "$key" --arg url "${BASE_URL}/${name}" --arg sig "$sig" \
+              '.platforms[$key] = {signature: $sig, url: $url}' latest.json > latest.json.tmp
+            mv latest.json.tmp latest.json
+          }
+
+          jq -n --arg version "$VERSION" --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{version: $version, pub_date: $pub_date, platforms: {}}' > latest.json
+
+          add_platform "linux-x86_64"   "$(asset_for '*.AppImage')"
+          add_platform "darwin-aarch64" "$(asset_for 'Projm_aarch64-apple-darwin.app.tar.gz')"
+          add_platform "darwin-x86_64"  "$(asset_for 'Projm_x86_64-apple-darwin.app.tar.gz')"
+          add_platform "windows-x86_64" "$(asset_for '*-setup.exe')"
+
+          cat latest.json
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -142,4 +196,26 @@ jobs:
           ---
           *Built with [Tauri](https://tauri.app)*" \
             --generate-notes \
+            latest.json \
             $(find artifacts -type f)
+
+      # The desktop app's updater endpoint points at the rolling desktop-latest
+      # tag, because /releases/latest/ is ambiguous with the dual v*/desktop-v*
+      # release channels of this repo.
+      - name: Update rolling desktop-latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view desktop-latest --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            gh release upload desktop-latest latest.json --clobber --repo "${{ github.repository }}"
+            gh release edit desktop-latest \
+              --title "Desktop updater manifest" \
+              --notes "Rolling release consumed by the Projm desktop auto-updater. Current version: v${{ steps.version.outputs.version }}. Download installers from the desktop-v* releases." \
+              --repo "${{ github.repository }}"
+          else
+            gh release create desktop-latest latest.json \
+              --title "Desktop updater manifest" \
+              --notes "Rolling release consumed by the Projm desktop auto-updater. Current version: v${{ steps.version.outputs.version }}. Download installers from the desktop-v* releases." \
+              --repo "${{ github.repository }}"
+          fi

@@ -1,0 +1,20 @@
+pkgbase = projm-bin
+	pkgdesc = Organize developer directories into category folders with fuzzy-jump navigation
+	pkgver = 0.7.4
+	pkgrel = 1
+	url = https://github.com/ZAAFHachemrachid/projm
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	optdepends = zoxide: fuzzy directory jumping integration
+	optdepends = git: projm clone and git status indicators
+	provides = projm
+	conflicts = projm
+	options = !debug
+	options = !strip
+	source_x86_64 = projm-bin-0.7.4-x86_64.tar.xz::https://github.com/ZAAFHachemrachid/projm/releases/download/v0.7.4/projm-x86_64-unknown-linux-gnu.tar.xz
+	sha256sums_x86_64 = d74ee39fd6693ebafa46d41c770f3609a8ad34d8f423192ea1757d2427e570f6
+	source_aarch64 = projm-bin-0.7.4-aarch64.tar.xz::https://github.com/ZAAFHachemrachid/projm/releases/download/v0.7.4/projm-aarch64-unknown-linux-gnu.tar.xz
+	sha256sums_aarch64 = 12402ae447e50b96d7c9a87de9c9d168ff5ff4594fc3ba45ef329a08578c1d9b
+
+pkgname = projm-bin

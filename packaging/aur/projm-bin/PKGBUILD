@@ -1,0 +1,32 @@
+# Maintainer: ZAAFHachemrachid <hiri.elwannas@gmail.com>
+pkgname=projm-bin
+pkgver=0.7.4
+pkgrel=1
+pkgdesc="Organize developer directories into category folders with fuzzy-jump navigation"
+arch=('x86_64' 'aarch64')
+url="https://github.com/ZAAFHachemrachid/projm"
+license=('MIT')
+provides=('projm')
+conflicts=('projm')
+options=('!debug' '!strip')
+optdepends=('zoxide: fuzzy directory jumping integration'
+            'git: projm clone and git status indicators')
+source_x86_64=("$pkgname-$pkgver-x86_64.tar.xz::$url/releases/download/v$pkgver/projm-x86_64-unknown-linux-gnu.tar.xz")
+source_aarch64=("$pkgname-$pkgver-aarch64.tar.xz::$url/releases/download/v$pkgver/projm-aarch64-unknown-linux-gnu.tar.xz")
+sha256sums_x86_64=('d74ee39fd6693ebafa46d41c770f3609a8ad34d8f423192ea1757d2427e570f6')
+sha256sums_aarch64=('12402ae447e50b96d7c9a87de9c9d168ff5ff4594fc3ba45ef329a08578c1d9b')
+
+package() {
+  cd "$srcdir"
+  install -Dm755 projm*/projm "$pkgdir/usr/bin/projm" 2>/dev/null \
+    || install -Dm755 projm "$pkgdir/usr/bin/projm"
+
+  # Shell completions
+  "$pkgdir/usr/bin/projm" completions zsh > projm.zsh || true
+  "$pkgdir/usr/bin/projm" completions bash > projm.bash || true
+  "$pkgdir/usr/bin/projm" completions fish > projm.fish || true
+  [ -s projm.zsh ] && install -Dm644 projm.zsh "$pkgdir/usr/share/zsh/site-functions/_projm"
+  [ -s projm.bash ] && install -Dm644 projm.bash "$pkgdir/usr/share/bash-completion/completions/projm"
+  [ -s projm.fish ] && install -Dm644 projm.fish "$pkgdir/usr/share/fish/vendor_completions.d/projm.fish"
+  :
+}
