@@ -55,7 +55,14 @@ version = "0.1.0"
         .output()
         .unwrap();
 
-    let remote_url = format!("file://{}", repo_path.display());
+    // git requires file URLs with forward slashes and a leading slash
+    // (file:///C:/... on Windows), so normalize the platform path.
+    let url_path = repo_path.display().to_string().replace('\\', "/");
+    let remote_url = if url_path.starts_with('/') {
+        format!("file://{url_path}")
+    } else {
+        format!("file:///{url_path}")
+    };
     (temp, remote_url)
 }
 
@@ -64,7 +71,9 @@ fn test_clone_and_organize_integration() {
     let (_remote_dir, remote_url) = setup_mock_git_remote();
 
     let tmp = tempfile::tempdir().unwrap();
+    // XDG_CONFIG_HOME only affects Linux; PROJM_CONFIG_DIR works on all platforms.
     std::env::set_var("XDG_CONFIG_HOME", tmp.path());
+    std::env::set_var("PROJM_CONFIG_DIR", tmp.path());
 
     let base_dir = tmp.path().join("my_base_projects");
     let config_dir = tmp.path().join("projm");

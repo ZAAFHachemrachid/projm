@@ -93,7 +93,7 @@ pub fn run(path_or_query: Option<String>) -> Result<()> {
     let cfg = load_run_config(project_path);
 
     // Full command override from config
-    if let Some(ref section) = cfg.as_ref().and_then(|c| c.run.as_ref()) {
+    if let Some(section) = cfg.as_ref().and_then(|c| c.run.as_ref()) {
         if let Some(ref cmd) = section.command {
             eprintln!("  {} {} (via .projm.toml)", "→".dimmed(), cmd.dimmed());
             return spawn_and_wait(cmd, project_path);
@@ -104,7 +104,7 @@ pub fn run(path_or_query: Option<String>) -> Result<()> {
     let cmd = resolve_dev_command(project_path)?;
 
     // Check if a named script was chosen via config (only if more than one)
-    if let Some(ref section) = cfg.as_ref().and_then(|c| c.run.as_ref()) {
+    if let Some(section) = cfg.as_ref().and_then(|c| c.run.as_ref()) {
         if let Some(ref scripts) = section.scripts {
             if scripts.len() > 1 {
                 let chosen = pick_script(scripts)?;
@@ -453,7 +453,7 @@ fn has_ext(dir: &Path, ext: &str) -> bool {
     std::fs::read_dir(dir)
         .map(|rd| {
             rd.filter_map(|e| e.ok())
-                .any(|e| e.path().extension().map_or(false, |x| x == ext))
+                .any(|e| e.path().extension().is_some_and(|x| x == ext))
         })
         .unwrap_or(false)
 }
@@ -855,7 +855,7 @@ fn run_monorepo(root: &Path, cfg: &Option<RunConfig>) -> Result<()> {
             .iter()
             .map(|p| {
                 // Use last component as display name
-                p.split('/').last().unwrap_or(p).to_string()
+                p.split('/').next_back().unwrap_or(p).to_string()
             })
             .collect()
     };

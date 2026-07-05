@@ -1,5 +1,4 @@
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 // ── Category ─────────────────────────────────────────────────────────────────
@@ -198,7 +197,7 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
             "web" | "ui"                => return Category::Ui,
             "api" | "core" | "backend"
             | "server"                  => {
-                if !has_tauri && !(has_cargo && has_pkg) {
+                if !(has_tauri || (has_cargo && has_pkg)) {
                     return Category::Services;
                 }
             }
@@ -475,7 +474,7 @@ fn has_ext(dir: &Path, ext: &str) -> bool {
     std::fs::read_dir(dir)
         .map(|rd| {
             rd.filter_map(|e| e.ok())
-                .any(|e| e.path().extension().map_or(false, |x| x == ext))
+                .any(|e| e.path().extension().is_some_and(|x| x == ext))
         })
         .unwrap_or(false)
 }
@@ -522,7 +521,7 @@ fn has_android_manifest(path: &Path) -> bool {
                     if find_manifest(&p, depth + 1) {
                         return true;
                     }
-                } else if p.file_name().map_or(false, |n| n == "AndroidManifest.xml") {
+                } else if p.file_name().is_some_and(|n| n == "AndroidManifest.xml") {
                     return true;
                 }
             }

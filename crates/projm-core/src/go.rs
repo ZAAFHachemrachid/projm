@@ -99,7 +99,6 @@ pub fn run(query: Option<String>, last: bool) -> Result<()> {
                     .canonicalize()
                     .unwrap_or_else(|_| p.path.to_path_buf())
                     .to_string_lossy()
-                    .to_string()
                     == *last_path_str
             });
             if selected_project.is_none() {
@@ -286,14 +285,12 @@ fn is_group_folder(path: &Path) -> bool {
 }
 
 fn detect_cd() -> &'static str {
-    std::process::Command::new("zoxide")
+    if std::process::Command::new("zoxide")
         .arg("--version")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
-        .map_or(false, |s| s.success())
-        .then_some("z")
-        .unwrap_or("cd")
+        .is_ok_and(|s| s.success()) { "z" } else { "cd" }
 }
 
 fn shell_quote(s: &str) -> String {

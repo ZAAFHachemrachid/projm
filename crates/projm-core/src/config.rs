@@ -1,6 +1,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
@@ -30,7 +33,10 @@ impl Default for Config {
 }
 
 fn config_path() -> PathBuf {
-    dirs::config_dir()
+    // PROJM_CONFIG_DIR overrides the platform config dir (tests, portable setups).
+    std::env::var_os("PROJM_CONFIG_DIR")
+        .map(PathBuf::from)
+        .or_else(dirs::config_dir)
         .unwrap_or_else(|| PathBuf::from("."))
         .join("projm/config.json")
 }
@@ -53,9 +59,9 @@ pub fn save_config(cfg: &Config) -> Result<()> {
     Ok(())
 }
 
-pub fn set_base(path: &PathBuf) -> Result<()> {
+pub fn set_base(path: &Path) -> Result<()> {
     let mut cfg = load();
-    cfg.base = path.clone();
+    cfg.base = path.to_path_buf();
     save_config(&cfg)?;
     eprintln!("  projm base → {}", path.display());
     Ok(())

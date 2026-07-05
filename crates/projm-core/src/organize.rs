@@ -93,7 +93,7 @@ pub fn run_with_base(dir: &Path, base: &Path, dry_run: bool) -> Result<()> {
     let moves: Vec<Move> = classified
         .into_iter()
         .map(|(src, name, cat)| {
-            let (dest, group) = resolve_dest(&base, &name, &cat, &prefix_count);
+            let (dest, group) = resolve_dest(base, &name, &cat, &prefix_count);
             Move {
                 src,
                 dest,

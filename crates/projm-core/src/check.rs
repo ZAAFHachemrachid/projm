@@ -222,14 +222,14 @@ pub fn parse_version(output: &str) -> Option<String> {
                 && cleaned
                     .chars()
                     .nth(1)
-                    .map_or(false, |c| c.is_ascii_digit())
+                    .is_some_and(|c| c.is_ascii_digit())
             {
                 cleaned = cleaned[1..].to_string();
             } else if cleaned.starts_with("go")
                 && cleaned
                     .chars()
                     .nth(2)
-                    .map_or(false, |c| c.is_ascii_digit())
+                    .is_some_and(|c| c.is_ascii_digit())
             {
                 cleaned = cleaned[2..].to_string();
             }
@@ -238,7 +238,7 @@ pub fn parse_version(output: &str) -> Option<String> {
             if cleaned
                 .chars()
                 .next()
-                .map_or(false, |c| c.is_ascii_digit())
+                .is_some_and(|c| c.is_ascii_digit())
                 && cleaned.contains('.')
             {
                 let final_version = cleaned
