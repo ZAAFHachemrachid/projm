@@ -71,8 +71,9 @@ fn three_siblings_all_grouped() {
         let name = format!("medlink-{}", suffix);
         let (dest, group): (PathBuf, Option<String>) =
             resolve_dest(&base(), &name, &Category::Apps, &prefix_count);
-        assert!(
-            dest.to_string_lossy().contains("/apps/medlink/"),
+        assert_eq!(
+            dest,
+            base().join("apps").join("medlink").join(&name),
             "expected group folder in path, got: {}",
             dest.display()
         );
@@ -106,7 +107,7 @@ fn underscore_prefix_also_groups() {
     let prefix_count = counts(&[("gym", 2)]);
     let (dest, group): (PathBuf, Option<String>) =
         resolve_dest(&base(), "gym_api", &Category::Services, &prefix_count);
-    assert!(dest.to_string_lossy().contains("/services/gym/gym_api"));
+    assert_eq!(dest, base().join("services").join("gym").join("gym_api"));
     assert_eq!(group, Some("gym".into()));
 }
 
@@ -138,8 +139,9 @@ fn dest_uses_correct_category_dir() {
 fn test_organize_single_project() {
     let tmp = tempfile::tempdir().unwrap();
 
-    // Set XDG_CONFIG_HOME to isolation directory
+    // XDG_CONFIG_HOME only affects Linux; PROJM_CONFIG_DIR works on all platforms.
     std::env::set_var("XDG_CONFIG_HOME", tmp.path());
+    std::env::set_var("PROJM_CONFIG_DIR", tmp.path());
 
     let base_dir = tmp.path().join("my_base_projects");
     let config_dir = tmp.path().join("projm");
