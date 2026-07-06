@@ -2,7 +2,7 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
-![version](https://img.shields.io/badge/version-0.7.4-blue)
+![version](https://img.shields.io/badge/version-0.7.5-blue)
 
 ## Install
 
@@ -43,9 +43,6 @@ cargo install projm
 ```bash
 brew install ZAAFHachemrachid/tap/projm
 ```
-
-> [!NOTE]
-> Available starting with the next release (v0.7.5+).
 
 ### 5. Arch Linux (AUR)
 
