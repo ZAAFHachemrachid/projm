@@ -486,7 +486,7 @@ export default function WorkspacePage() {
   // Close a tab: tear down its shell + runner sessions, then activate a
   // neighbor if the closed tab was the active one.
   function closeProject(path: string) {
-    invoke("cmd_kill_terminal", { cwd: path }).catch(() => {});
+    invoke("cmd_kill_project_terminals", { cwd: path }).catch(() => {});
     invoke("cmd_runner_stop_all", { projectPath: path }).catch(() => {});
     const idx = openProjects.findIndex((p) => p.path.toString() === path);
     const next = openProjects.filter((p) => p.path.toString() !== path);

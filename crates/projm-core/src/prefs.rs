@@ -15,6 +15,9 @@ pub struct Prefs {
     /// canonical path of the last-entered project
     #[serde(default)]
     pub last_project: Option<String>,
+    /// preferred external terminal emulator (binary name; macOS: app name)
+    #[serde(default)]
+    pub terminal: Option<String>,
 }
 
 impl Prefs {

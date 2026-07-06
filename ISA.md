@@ -114,6 +114,7 @@ Projm keeps every opened project in an ordered tab strip in the top header; each
 ## Changelog
 
 - 2026-07-06 — conjectured: tabs were a pure frontend feature over the existing session backend. refuted by: `cmd_write_terminal` had no cwd parameter and `terminal-data` events were unkeyed — a single global PTY meant any multi-terminal UI would cross-wire input/output. learned: the runner subsystem was session-keyed but the terminal subsystem was not; "sessions persist" required fixing the terminal ingestion point in Rust first. criterion now: ISC-19..24 (per-cwd session map, keyed events, kill command).
+- 2026-07-06 (terminal overhaul, plan `Plans/synthetic-wobbling-forest.md`) — conjectured: backend session ids should be minted in Rust and returned from spawn. refuted by: any id returned after spawn means the shell's first output (the prompt) races the frontend's event-listener attach and can be lost. learned: let the FRONTEND generate session ids so it subscribes to `terminal-data:{id}` before spawning; reuse-if-alive by id also absorbs StrictMode double-mounts. Shipped: PTY resize sync (`cmd_resize_terminal` + spawn-at-fitted-size, closing the 24x80 defect), per-project multi-tab sessions keyed by id with `terminal-exit:{id}` reaping, xterm addons (search/web-links/clipboard/unicode11, 10k scrollback), external terminal handoff via `projm_core::external_term` (prefs.terminal → $TERMINAL → probe list; detached spawn on all 3 OSes), agents launch into fresh tabs gated on a ready-handshake.
 
 ## Verification
 
@@ -130,3 +131,4 @@ Projm keeps every opened project in an ordered tab strip in the top header; each
 - ISC-34: Read + build — dashboard/diagnostics branches intact behind `selectedProject ? null : ...`; production build renders all routes
 - ISC-23 (reap fix): Read lib.rs — `child.kill()` followed by off-thread `child.wait()`; cargo check re-run green
 - UI visual: DEFERRED-VERIFY — desktop app run required; follow-up: launch `bun run tauri dev`, open two projects, confirm independent shells, one-click + Ctrl+Tab/Ctrl+PageDown switching, close teardown
+- Terminal overhaul (2026-07-06): Bash — `cargo build --workspace` green; `cargo test --workspace` 166 passed / 0 failed (incl. 5 new external_term tests); `bun run build` ✓ compiled, 8/8 pages; eslint + tsc clean on terminal.tsx/runner-panel.tsx. DEFERRED-VERIFY (needs live app): tput cols matches panel, htop resize redraw, tab isolation (`echo $$`), `exit` closes tab without zombie, external-terminal button opens emulator at project cwd.

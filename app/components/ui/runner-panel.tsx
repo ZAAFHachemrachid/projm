@@ -13,6 +13,9 @@ import {
   Bot,
   ChevronDown,
   Settings2,
+  ExternalLink,
+  Plus,
+  X,
 } from "lucide-react";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -52,8 +55,18 @@ interface StatusEvent {
   pid: number | null;
 }
 
-const SHELL = "__shell__";
 const UI_LOG_CAP = 2000;
+
+interface ShellTab {
+  id: string;
+  title: string;
+}
+
+/// Frontend-generated PTY session id, so the terminal component can subscribe
+/// to the session's events before the shell is spawned.
+function newSessionId(): string {
+  return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 const DOT: Record<Status, string> = {
   running: "bg-emerald-400",
@@ -117,11 +130,9 @@ function LogView({ lines }: { lines: string[] }) {
 /// Dropdown that launches a configured AI agent CLI (Claude Code, Codex,
 /// Gemini CLI, …) inside this project's shell session.
 function AgentLauncher({
-  cwd,
   onLaunch,
 }: {
-  cwd: string;
-  onLaunch: () => void;
+  onLaunch: (agent: AgentInfo) => Promise<void>;
 }) {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [open, setOpen] = useState(false);
@@ -155,9 +166,8 @@ function AgentLauncher({
     setLaunching(agent.name);
     setError(null);
     try {
-      // Show the shell first so the user watches the agent boot in it.
-      onLaunch();
-      await invoke("cmd_launch_agent", { cwd, name: agent.name });
+      // The panel opens a fresh shell tab and types the agent command into it.
+      await onLaunch(agent);
       setOpen(false);
     } catch (e) {
       setError(String(e));
@@ -242,14 +252,87 @@ export default function RunnerPanel({
   const [apps, setApps] = useState<RunnableApp[]>([]);
   const [statuses, setStatuses] = useState<Record<string, Status>>({});
   const [logs, setLogs] = useState<Record<string, string[]>>({});
-  const [active, setActive] = useState<string>(SHELL);
+  const [shellTabs, setShellTabs] = useState<ShellTab[]>(() => [
+    { id: newSessionId(), title: "Shell" },
+  ]);
+  // Lazy initializer runs after the one above, so the first tab id is set.
+  const [active, setActive] = useState<string>(() => shellTabs[0].id);
   const [discovery, setDiscovery] = useState<"loading" | "ready" | "empty" | "error">(
     "loading"
   );
   const [discoverError, setDiscoverError] = useState<string | null>(null);
+  const [extTermError, setExtTermError] = useState<string | null>(null);
   // Incoming log lines are buffered here and flushed to state on animation frames
   // to keep re-renders bounded under heavy output.
   const pending = useRef<Record<string, string[]>>({});
+  // Resolvers for tabs whose shell hasn't reported ready yet — agent launch
+  // awaits these so it never types into a PTY that doesn't exist.
+  const readyWaiters = useRef<Record<string, () => void>>({});
+  const shellCounter = useRef(1);
+  // Mirror of shellTabs for callbacks that fire long after their render
+  // (agent-launch failure, terminal-exit events).
+  const shellTabsRef = useRef<ShellTab[]>([]);
+
+  useEffect(() => {
+    shellTabsRef.current = shellTabs;
+  }, [shellTabs]);
+
+  const markTabReady = (id: string) => {
+    readyWaiters.current[id]?.();
+    delete readyWaiters.current[id];
+  };
+
+  const addShellTab = () => {
+    shellCounter.current += 1;
+    const tab = { id: newSessionId(), title: `Shell ${shellCounter.current}` };
+    setShellTabs((tabs) => [...tabs, tab]);
+    setActive(tab.id);
+    return tab;
+  };
+
+  const removeShellTab = (id: string, killBackend: boolean) => {
+    if (killBackend) {
+      invoke("cmd_kill_terminal", { id }).catch(() => {});
+    }
+    delete readyWaiters.current[id];
+    const next = shellTabsRef.current.filter((t) => t.id !== id);
+    setShellTabs(next);
+    setActive((a) =>
+      a === id ? next[next.length - 1]?.id ?? apps[0]?.id ?? "" : a
+    );
+  };
+
+  // Open a fresh tab for the agent, wait until its shell is live, then type
+  // the agent command into it. Errors propagate to the launcher dropdown.
+  const launchAgent = async (agent: AgentInfo) => {
+    shellCounter.current += 1;
+    const id = newSessionId();
+    const ready = new Promise<void>((resolve) => {
+      readyWaiters.current[id] = resolve;
+    });
+    setShellTabs((tabs) => [...tabs, { id, title: agent.name }]);
+    setActive(id);
+    try {
+      await Promise.race([
+        ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("terminal did not start")), 8000)
+        ),
+      ]);
+      await invoke("cmd_launch_agent", { name: agent.name, sessionId: id });
+    } catch (e) {
+      removeShellTab(id, true);
+      throw e;
+    }
+  };
+
+  const openExternalTerminal = () => {
+    setExtTermError(null);
+    invoke("cmd_open_external_terminal", { path: project.path }).catch((e) => {
+      setExtTermError(String(e));
+      window.setTimeout(() => setExtTermError(null), 6000);
+    });
+  };
 
   // Discover runnable apps for the selected project.
   useEffect(() => {
@@ -339,10 +422,32 @@ export default function RunnerPanel({
     >
       <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
         <TabsList variant="line" className="flex-wrap">
-          <TabsTrigger value={SHELL}>
-            <TerminalSquare className="size-3" />
-            Shell
-          </TabsTrigger>
+          {shellTabs.map((t) => (
+            <TabsTrigger key={t.id} value={t.id}>
+              <TerminalSquare className="size-3" />
+              {t.title}
+              <span
+                role="button"
+                tabIndex={-1}
+                title="Close tab"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeShellTab(t.id, true);
+                }}
+                className="ml-1 rounded p-0.5 text-slate-500 hover:bg-white/10 hover:text-white"
+              >
+                <X className="size-2.5" />
+              </span>
+            </TabsTrigger>
+          ))}
+          <button
+            type="button"
+            onClick={addShellTab}
+            title="New shell tab"
+            className="mx-0.5 rounded p-1 text-slate-500 transition-colors hover:bg-white/5 hover:text-white"
+          >
+            <Plus className="size-3" />
+          </button>
           {apps.map((a) => (
             <TabsTrigger key={a.id} value={a.id}>
               <StatusDot status={statuses[a.id]} />
@@ -383,15 +488,39 @@ export default function RunnerPanel({
               )}
             </div>
           )}
-          <AgentLauncher cwd={project.path} onLaunch={() => setActive(SHELL)} />
+          {extTermError && (
+            <span
+              className="max-w-[220px] truncate font-mono text-[11px] text-amber-400"
+              title={extTermError}
+            >
+              {extTermError}
+            </span>
+          )}
+          <Button
+            size="xs"
+            variant="outline"
+            title="Open this project in your external terminal"
+            onClick={openExternalTerminal}
+          >
+            <ExternalLink className="size-3" />
+            Terminal
+          </Button>
+          <AgentLauncher onLaunch={launchAgent} />
         </div>
       </div>
 
-      <TabsContent value={SHELL} keepMounted className="min-h-0">
-        <div className="h-full w-full">
-          <TerminalView cwd={project.path} />
-        </div>
-      </TabsContent>
+      {shellTabs.map((t) => (
+        <TabsContent key={t.id} value={t.id} keepMounted className="min-h-0">
+          <div className="h-full w-full">
+            <TerminalView
+              cwd={project.path}
+              sessionId={t.id}
+              onReady={() => markTabReady(t.id)}
+              onExit={() => removeShellTab(t.id, false)}
+            />
+          </div>
+        </TabsContent>
+      ))}
 
       {apps.map((a) => (
         <TabsContent key={a.id} value={a.id} keepMounted className="min-h-0">
