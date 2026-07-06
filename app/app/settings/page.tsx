@@ -55,6 +55,23 @@ interface AgentInfo {
   path: string | null;
 }
 
+interface TerminalCandidate {
+  name: string;
+  installed: boolean;
+  path: string | null;
+}
+
+interface TerminalConfig {
+  /** Saved embedded-shell pref; null means auto-detect. */
+  shell: string | null;
+  /** Saved external-emulator pref; null means auto-detect. */
+  terminal: string | null;
+  /** What auto-detect currently resolves the shell to. */
+  resolvedShell: string;
+  shells: TerminalCandidate[];
+  emulators: TerminalCandidate[];
+}
+
 interface CustomRule {
   name?: string;
   name_contains?: string;
@@ -335,6 +352,17 @@ export default function SettingsPage() {
   const [editors, setEditors] = useState<Editor[]>([]);
   const [editorsLoading, setEditorsLoading] = useState(true);
 
+  // Terminal settings (embedded shell + external emulator)
+  const [termConfig, setTermConfig] = useState<TerminalConfig | null>(null);
+  const [shellSel, setShellSel] = useState("auto");
+  const [shellCustom, setShellCustom] = useState("");
+  const [emulatorSel, setEmulatorSel] = useState("auto");
+  const [emulatorCustom, setEmulatorCustom] = useState("");
+  const [savingShell, setSavingShell] = useState(false);
+  const [savingEmulator, setSavingEmulator] = useState(false);
+  const [shellMessage, setShellMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [emulatorMessage, setEmulatorMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
   async function loadConfig() {
     try {
       const cfg = await invoke<Config>("cmd_get_config");
@@ -355,6 +383,94 @@ export default function SettingsPage() {
       // silently fail
     } finally {
       setEditorsLoading(false);
+    }
+  }
+
+  async function loadTerminalConfig() {
+    try {
+      const cfg = await invoke<TerminalConfig>("cmd_get_terminal_config");
+      setTermConfig(cfg);
+      // Derive the picker selection: a saved name that matches a known
+      // candidate selects it; anything else is treated as a custom path.
+      const deriveSel = (
+        saved: string | null,
+        candidates: TerminalCandidate[],
+        setSel: (v: string) => void,
+        setCustom: (v: string) => void
+      ) => {
+        if (!saved) {
+          setSel("auto");
+          setCustom("");
+        } else if (candidates.some((c) => c.name === saved)) {
+          setSel(saved);
+          setCustom("");
+        } else {
+          setSel("__custom__");
+          setCustom(saved);
+        }
+      };
+      deriveSel(cfg.shell, cfg.shells, setShellSel, setShellCustom);
+      deriveSel(cfg.terminal, cfg.emulators, setEmulatorSel, setEmulatorCustom);
+    } catch (err) {
+      console.error("Failed to load terminal config:", err);
+    }
+  }
+
+  async function handleSaveShell() {
+    const value =
+      shellSel === "auto"
+        ? null
+        : shellSel === "__custom__"
+          ? shellCustom.trim()
+          : shellSel;
+    if (shellSel === "__custom__" && !value) {
+      setShellMessage({ ok: false, text: "Enter a shell path or binary name." });
+      return;
+    }
+    setSavingShell(true);
+    setShellMessage(null);
+    try {
+      await invoke("cmd_set_terminal_shell", { shell: value });
+      await loadTerminalConfig();
+      setShellMessage({
+        ok: true,
+        text: value
+          ? `Shell set to ${value} — applies to new terminals.`
+          : "Shell set to auto-detect — applies to new terminals.",
+      });
+    } catch (err) {
+      setShellMessage({ ok: false, text: `Failed to save: ${err}` });
+    } finally {
+      setSavingShell(false);
+      setTimeout(() => setShellMessage(null), 4000);
+    }
+  }
+
+  async function handleSaveEmulator() {
+    const value =
+      emulatorSel === "auto"
+        ? null
+        : emulatorSel === "__custom__"
+          ? emulatorCustom.trim()
+          : emulatorSel;
+    if (emulatorSel === "__custom__" && !value) {
+      setEmulatorMessage({ ok: false, text: "Enter an emulator binary name." });
+      return;
+    }
+    setSavingEmulator(true);
+    setEmulatorMessage(null);
+    try {
+      await invoke("cmd_set_external_terminal", { terminal: value });
+      await loadTerminalConfig();
+      setEmulatorMessage({
+        ok: true,
+        text: value ? `Emulator set to ${value}.` : "Emulator set to auto-detect.",
+      });
+    } catch (err) {
+      setEmulatorMessage({ ok: false, text: `Failed to save: ${err}` });
+    } finally {
+      setSavingEmulator(false);
+      setTimeout(() => setEmulatorMessage(null), 4000);
     }
   }
 
@@ -523,7 +639,7 @@ export default function SettingsPage() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadConfig(), loadEditors(), loadRules(), loadBlueprints(), loadAgents()]);
+      await Promise.all([loadConfig(), loadEditors(), loadTerminalConfig(), loadRules(), loadBlueprints(), loadAgents()]);
       setLoading(false);
     }
     init();
@@ -715,6 +831,7 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: "general", label: "General", icon: Sliders },
+    { id: "terminal", label: "Terminal", icon: Terminal },
     { id: "categories", label: "Categories", icon: Layers },
     { id: "blueprints", label: "Blueprints", icon: Sparkles },
     { id: "agents", label: "AI Agents", icon: Bot },
@@ -908,6 +1025,164 @@ export default function SettingsPage() {
                       <li>Multiple editors matched → opens dynamic picker, remembering last preference.</li>
                     </ul>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* TAB: TERMINAL */}
+          {activeTab === "terminal" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Embedded Shell Card */}
+              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
+                <CardHeader className="p-6 pb-4">
+                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-indigo-400 flex items-center gap-2.5">
+                    <Terminal className="size-4.5 text-indigo-400" />
+                    Embedded Terminal Shell
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-5">
+                  <p className="text-sm text-zinc-400 leading-relaxed">
+                    Which shell the in-app terminal spawns for each project tab. Choose{" "}
+                    <span className="text-zinc-200 font-medium">Auto</span> to detect from{" "}
+                    <code className="text-[10px] bg-zinc-900/60 text-indigo-300 px-1.5 py-0.5 rounded border border-white/5 font-mono">$SHELL</code>,
+                    or pick a specific shell. Applies to terminals opened after saving.
+                  </p>
+                  <div className="flex gap-3">
+                    <select
+                      value={shellSel}
+                      onChange={(e) => {
+                        setShellSel(e.target.value);
+                        setShellMessage(null);
+                      }}
+                      className="flex-1 h-10 rounded-md border border-white/5 bg-black/40 px-3 font-mono text-sm text-zinc-200 outline-none focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                    >
+                      <option value="auto" className="bg-zinc-950">
+                        Auto{termConfig ? ` (→ ${termConfig.resolvedShell})` : ""}
+                      </option>
+                      {(termConfig?.shells ?? []).map((s) => (
+                        <option key={s.name} value={s.name} className="bg-zinc-950">
+                          {s.name}
+                          {s.installed ? "" : " — not found"}
+                        </option>
+                      ))}
+                      <option value="__custom__" className="bg-zinc-950">
+                        Custom path…
+                      </option>
+                    </select>
+                    <Button
+                      onClick={handleSaveShell}
+                      disabled={savingShell}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold h-10 px-5 shadow-sm transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {savingShell ? (
+                        "Saving..."
+                      ) : (
+                        <>
+                          <Save className="size-3.5 mr-1.5" />
+                          Save Shell
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {shellSel === "__custom__" && (
+                    <Input
+                      value={shellCustom}
+                      onChange={(e) => {
+                        setShellCustom(e.target.value);
+                        setShellMessage(null);
+                      }}
+                      className="font-mono text-sm border-white/5 bg-black/40 h-10 focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                      placeholder="/usr/bin/fish"
+                    />
+                  )}
+                  {shellMessage && (
+                    <span
+                      className={`text-xs flex items-center gap-1 ${
+                        shellMessage.ok ? "text-emerald-400" : "text-red-400"
+                      }`}
+                    >
+                      {shellMessage.ok ? <Check className="size-3" /> : <AlertCircle className="size-3" />}
+                      {shellMessage.text}
+                    </span>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* External Emulator Card */}
+              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
+                <CardHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-950/20">
+                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-cyan-400 flex items-center gap-2.5">
+                    <Terminal className="size-4.5 text-cyan-400" />
+                    External Terminal Emulator
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-5">
+                  <p className="text-sm text-zinc-400 leading-relaxed">
+                    Which emulator the{" "}
+                    <span className="text-zinc-200 font-medium">Open in terminal</span> action launches at
+                    a project directory.{" "}
+                    <span className="text-zinc-200 font-medium">Auto</span> probes common emulators on your{" "}
+                    <code className="text-[10px] bg-zinc-900/60 text-cyan-300 px-1.5 py-0.5 rounded border border-white/5 font-mono">$PATH</code>.
+                  </p>
+                  <div className="flex gap-3">
+                    <select
+                      value={emulatorSel}
+                      onChange={(e) => {
+                        setEmulatorSel(e.target.value);
+                        setEmulatorMessage(null);
+                      }}
+                      className="flex-1 h-10 rounded-md border border-white/5 bg-black/40 px-3 font-mono text-sm text-zinc-200 outline-none focus-visible:ring-1 focus-visible:ring-cyan-500/50"
+                    >
+                      <option value="auto" className="bg-zinc-950">
+                        Auto (detect)
+                      </option>
+                      {(termConfig?.emulators ?? []).map((e) => (
+                        <option key={e.name} value={e.name} className="bg-zinc-950">
+                          {e.name}
+                          {e.installed ? "" : " — not found"}
+                        </option>
+                      ))}
+                      <option value="__custom__" className="bg-zinc-950">
+                        Custom…
+                      </option>
+                    </select>
+                    <Button
+                      onClick={handleSaveEmulator}
+                      disabled={savingEmulator}
+                      className="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold h-10 px-5 shadow-sm transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {savingEmulator ? (
+                        "Saving..."
+                      ) : (
+                        <>
+                          <Save className="size-3.5 mr-1.5" />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {emulatorSel === "__custom__" && (
+                    <Input
+                      value={emulatorCustom}
+                      onChange={(e) => {
+                        setEmulatorCustom(e.target.value);
+                        setEmulatorMessage(null);
+                      }}
+                      className="font-mono text-sm border-white/5 bg-black/40 h-10 focus-visible:ring-1 focus-visible:ring-cyan-500/50"
+                      placeholder="kitty"
+                    />
+                  )}
+                  {emulatorMessage && (
+                    <span
+                      className={`text-xs flex items-center gap-1 ${
+                        emulatorMessage.ok ? "text-emerald-400" : "text-red-400"
+                      }`}
+                    >
+                      {emulatorMessage.ok ? <Check className="size-3" /> : <AlertCircle className="size-3" />}
+                      {emulatorMessage.text}
+                    </span>
+                  )}
                 </CardContent>
               </Card>
             </div>

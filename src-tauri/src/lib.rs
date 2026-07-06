@@ -139,17 +139,13 @@ fn ensure_terminal(
         })
         .map_err(|e| e.to_string())?;
 
-    let shell_path = if cfg!(target_os = "windows") {
-        std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
-    } else {
-        if std::path::Path::new("/bin/zsh").exists() {
-            "/bin/zsh".to_string()
-        } else if std::path::Path::new("/bin/bash").exists() {
-            "/bin/bash".to_string()
-        } else {
-            "/bin/sh".to_string()
-        }
-    };
+    // Resolve the shell from the user's Settings choice (prefs.json), falling
+    // back to $SHELL / a probe list. Read fresh per spawn so a Settings change
+    // takes effect on the next terminal without an app restart.
+    let shell_pref = projm_core::prefs::Prefs::load()
+        .unwrap_or_default()
+        .shell;
+    let shell_path = projm_core::shell::resolve_shell(shell_pref.as_deref());
 
     let mut cmd = CommandBuilder::new(&shell_path);
     cmd.cwd(cwd);
@@ -343,6 +339,51 @@ fn cmd_kill_project_terminals(
 fn cmd_open_external_terminal(path: String) -> Result<String, String> {
     projm_core::external_term::open_terminal_at(std::path::Path::new(&path))
         .map_err(|e| e.to_string())
+}
+
+/// Build a `[{ name, installed, path }]` list for a set of candidate binaries,
+/// resolving each against `$PATH` so the Settings picker can flag what's usable.
+fn detect_candidates(names: &[&str]) -> Vec<serde_json::Value> {
+    names
+        .iter()
+        .map(|name| {
+            let detected = projm_core::agents::detect_path(name);
+            serde_json::json!({
+                "name": name,
+                "installed": detected.is_some(),
+                "path": detected.map(|p| p.to_string_lossy().to_string()),
+            })
+        })
+        .collect()
+}
+
+/// Terminal settings for the GUI: the saved embedded-shell and external-emulator
+/// preferences plus the candidate lists (with install status) to choose from.
+#[tauri::command]
+fn cmd_get_terminal_config() -> serde_json::Value {
+    let prefs = projm_core::prefs::Prefs::load().unwrap_or_default();
+    serde_json::json!({
+        "shell": prefs.shell,
+        "terminal": prefs.terminal,
+        "resolvedShell": projm_core::shell::resolve_shell(prefs.shell.as_deref()),
+        "shells": detect_candidates(projm_core::shell::KNOWN_SHELLS),
+        "emulators": detect_candidates(projm_core::external_term::PROBE_LIST),
+    })
+}
+
+/// Persist the embedded-terminal shell choice. `None`/blank → auto-detect.
+/// Takes effect on the next terminal spawned; existing terminals are untouched.
+#[tauri::command]
+fn cmd_set_terminal_shell(shell: Option<String>) -> Result<(), String> {
+    let mut prefs = projm_core::prefs::Prefs::load().map_err(|e| e.to_string())?;
+    prefs.set_shell(shell).map_err(|e| e.to_string())
+}
+
+/// Persist the external terminal-emulator choice. `None`/blank → auto-detect.
+#[tauri::command]
+fn cmd_set_external_terminal(terminal: Option<String>) -> Result<(), String> {
+    let mut prefs = projm_core::prefs::Prefs::load().map_err(|e| e.to_string())?;
+    prefs.set_terminal(terminal).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -977,6 +1018,9 @@ pub fn run() {
             cmd_kill_terminal,
             cmd_kill_project_terminals,
             cmd_open_external_terminal,
+            cmd_get_terminal_config,
+            cmd_set_terminal_shell,
+            cmd_set_external_terminal,
             cmd_list_projects,
             cmd_set_categories,
             cmd_get_rules_raw,

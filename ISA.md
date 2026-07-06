@@ -1,10 +1,10 @@
 ---
 project: projm
-task: Open-projects tab bar with persistent per-project sessions and one-click / Ctrl+Tab switching
-slug: projm-open-project-tabs
+task: Terminal Settings — pick embedded-shell + external-emulator in the desktop Settings panel
+slug: projm-terminal-settings
 effort: E3
 phase: complete
-progress: 34/34
+progress: 12/12
 mode: standard
 started: 2026-07-06
 updated: 2026-07-06
@@ -132,3 +132,35 @@ Projm keeps every opened project in an ordered tab strip in the top header; each
 - ISC-23 (reap fix): Read lib.rs — `child.kill()` followed by off-thread `child.wait()`; cargo check re-run green
 - UI visual: DEFERRED-VERIFY — desktop app run required; follow-up: launch `bun run tauri dev`, open two projects, confirm independent shells, one-click + Ctrl+Tab/Ctrl+PageDown switching, close teardown
 - Terminal overhaul (2026-07-06): Bash — `cargo build --workspace` green; `cargo test --workspace` 166 passed / 0 failed (incl. 5 new external_term tests); `bun run build` ✓ compiled, 8/8 pages; eslint + tsc clean on terminal.tsx/runner-panel.tsx. DEFERRED-VERIFY (needs live app): tput cols matches panel, htop resize redraw, tab isolation (`echo $$`), `exit` closes tab without zombie, external-terminal button opens emulator at project cwd.
+
+## Terminal Shell & Emulator Settings (2026-07-06)
+
+**Problem:** The embedded terminal hardcoded its shell (`/bin/zsh`→`bash`→`sh`, `COMSPEC` on Windows) with no way to choose; the external-emulator preference existed only as a hand-edited JSON key (`prefs.terminal`) with no GUI. Users on fish/pwsh/powershell or a non-default emulator had no supported override.
+
+**Goal:** A **Terminal** tab in desktop Settings that lets the user pick (a) the shell the in-app terminal spawns and (b) the emulator the "Open in terminal" action launches — both persisted to `~/.config/projm/prefs.json`, both auto-detecting when left on Auto.
+
+**Out of scope:** Per-project shell overrides; retro-applying a shell change to already-open terminals; shell startup-arg/env customization; macOS emulator `$PATH` detection (apps aren't on PATH — free-text fallback covers it).
+
+### Criteria
+- [x] ISC-1: `crates/projm-core/src/shell.rs` resolves pref → `$SHELL` → probe list; absolute paths trusted, unknown names fall through to auto (so terminal always opens).
+- [x] ISC-2: `explicit_shell` unit-tested — auto/blank→None, named-on-path wins, named-absent→None, absolute path trusted (4 tests green).
+- [x] ISC-3: `Prefs` gains `shell: Option<String>` with `#[serde(default)]` (backward-compatible load of old prefs.json).
+- [x] ISC-4: `Prefs::set_shell`/`set_terminal` persist choice; blank clears to auto.
+- [x] ISC-5: `ensure_terminal` reads `prefs.shell` fresh per spawn via `shell::resolve_shell` (change applies to next terminal, no restart).
+- [x] ISC-6: `external_term::PROBE_LIST` made `pub` for GUI candidate listing.
+- [x] ISC-7: `cmd_get_terminal_config` returns saved prefs + resolvedShell + shell/emulator candidate lists with install status.
+- [x] ISC-8: `cmd_set_terminal_shell` / `cmd_set_external_terminal` registered in `generate_handler!`.
+- [x] ISC-9: Settings page has a **Terminal** tab (Terminal icon) between General and Categories.
+- [x] ISC-10: Shell + emulator cards: native `<select>` (Auto / detected candidates flagged / Custom…) + custom-path Input + Save with success/error toast.
+- [x] ISC-11: Anti: no regression — `cargo test -p projm_core` 76 unit + all integration suites pass; `tsc --noEmit` exit 0.
+- [x] ISC-12: `cargo check -p projm-tauri` compiles all three new commands clean.
+
+### Features
+- `shell.rs` resolver + tests | satisfies ISC-1,2 | depends_on none
+- prefs `shell` field + setters | ISC-3,4 | depends_on none
+- ensure_terminal wiring | ISC-5 | depends_on shell.rs, prefs
+- tauri terminal-config commands | ISC-6,7,8 | depends_on prefs, shell.rs, external_term
+- Settings Terminal tab UI | ISC-9,10 | depends_on tauri commands
+
+### Verification
+- Terminal settings (2026-07-06): Bash — `cargo test -p projm_core` 76 passed / 0 failed (incl. 4 new `shell::tests`); `cargo check -p projm-tauri` Finished clean; `bunx tsc --noEmit` exit 0, 0 errors. Command-name + arg-name parity confirmed frontend↔backend by grep + successful `generate_handler!` compile. DEFERRED-VERIFY (needs live `bun run tauri dev`): open Settings▸Terminal, set shell=fish → new project tab spawns fish (`echo $0`); set emulator=kitty → "Open in terminal" launches kitty at cwd.

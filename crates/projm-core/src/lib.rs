@@ -12,4 +12,5 @@ pub mod prefs;
 pub mod rules;
 pub mod run;
 pub mod runner;
+pub mod shell;
 pub mod status;

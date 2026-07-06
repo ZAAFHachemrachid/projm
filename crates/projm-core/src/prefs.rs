@@ -18,6 +18,10 @@ pub struct Prefs {
     /// preferred external terminal emulator (binary name; macOS: app name)
     #[serde(default)]
     pub terminal: Option<String>,
+    /// preferred shell for the embedded terminal (binary name or absolute
+    /// path; `None`/`"auto"` → auto-detect). See `crate::shell::resolve_shell`.
+    #[serde(default)]
+    pub shell: Option<String>,
 }
 
 impl Prefs {
@@ -27,9 +31,22 @@ impl Prefs {
         Ok(Self::load_from(default_path()?))
     }
 
-    #[allow(dead_code)]
     pub fn save(&self) -> Result<()> {
         self.save_to(&default_path()?)
+    }
+
+    /// Persist the embedded-terminal shell choice. Blank/whitespace clears it
+    /// back to auto-detect.
+    pub fn set_shell(&mut self, shell: Option<String>) -> Result<()> {
+        self.shell = shell.filter(|s| !s.trim().is_empty());
+        self.save()
+    }
+
+    /// Persist the external terminal-emulator choice. Blank/whitespace clears
+    /// it back to auto-detect.
+    pub fn set_terminal(&mut self, terminal: Option<String>) -> Result<()> {
+        self.terminal = terminal.filter(|s| !s.trim().is_empty());
+        self.save()
     }
 
     pub fn last_editor_for(&self, project: &Path) -> Option<&str> {

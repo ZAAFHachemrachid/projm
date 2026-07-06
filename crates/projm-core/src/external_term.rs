@@ -13,7 +13,8 @@ use crate::agents;
 use crate::prefs::Prefs;
 
 /// Emulators probed on Linux/BSD when neither prefs nor $TERMINAL name one.
-const PROBE_LIST: &[&str] = &[
+/// Public so the GUI can present the same candidate list in its picker.
+pub const PROBE_LIST: &[&str] = &[
     "kitty",
     "alacritty",
     "wezterm",
