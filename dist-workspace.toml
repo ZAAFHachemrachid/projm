@@ -22,6 +22,10 @@ targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-da
 install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = false
+# The release.yml tag glob is hand-narrowed to 'v[0-9]+...' so desktop-v* tags
+# don't trigger cargo-dist; without this, 'dist host' fails the run with
+# "out of date contents and needs to be regenerated".
+allow-dirty = ["ci"]
 
 # System dependencies needed for building (Tauri requires GTK on Linux).
 # Scoped to Linux gnu targets: without the scope these also install inside the
