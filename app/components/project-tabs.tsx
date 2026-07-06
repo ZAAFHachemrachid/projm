@@ -15,7 +15,7 @@ function sessionDot(statuses: AppStatuses | undefined): string {
   if (values.includes("running")) return "bg-emerald-400";
   if (values.includes("starting")) return "bg-amber-400 animate-pulse";
   if (values.includes("errored")) return "bg-red-500";
-  return "bg-slate-600";
+  return "bg-muted";
 }
 
 /**
@@ -57,8 +57,8 @@ export default function ProjectTabs({
             title={`~/projects/${p.category}/${p.name}`}
             className={`group flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-xs font-mono transition-colors ${
               isActive
-                ? "bg-[#18191c] border-indigo-500/40 text-indigo-200"
-                : "border-transparent text-[#94a3b8] hover:bg-[#181a1c]/60 hover:text-white"
+                ? "bg-card border-primary/40 text-primary"
+                : "border-transparent text-muted-foreground hover:bg-card/60 hover:text-foreground"
             }`}
           >
             <span
@@ -71,7 +71,7 @@ export default function ProjectTabs({
                 onClose(path);
               }}
               title={`Close ${p.name}`}
-              className={`rounded p-0.5 text-[#64748b] transition-opacity hover:bg-white/10 hover:text-white ${
+              className={`rounded p-0.5 text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground ${
                 isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
               }`}
             >

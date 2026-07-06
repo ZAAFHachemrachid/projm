@@ -32,7 +32,12 @@ import {
   ArrowLeft,
   Bot,
   Terminal,
+  Palette,
+  DownloadCloud,
 } from "lucide-react";
+import { ThemeSwitcher } from "@/components/theme-switcher";
+import { SettingsUpdater } from "@/components/settings-updater";
+import { Dropdown } from "@/components/ui/dropdown";
 
 interface Config {
   base: string;
@@ -142,58 +147,58 @@ const semanticCategoryStyles: Record<
   { dot: string; text: string; bg: string; border: string; desc: string }
 > = {
   apps: {
-    dot: "bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]",
-    text: "text-indigo-400",
-    border: "hover:border-indigo-500/30 border-white/5",
-    bg: "bg-indigo-500/5",
+    dot: "bg-primary shadow-[0_0_8px_rgba(99,102,241,0.6)]",
+    text: "text-primary",
+    border: "hover:border-primary/30 border-border",
+    bg: "bg-primary/5",
     desc: "Application Workspace",
   },
   services: {
     dot: "bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.6)]",
     text: "text-cyan-400",
-    border: "hover:border-cyan-500/30 border-white/5",
+    border: "hover:border-cyan-500/30 border-border",
     bg: "bg-cyan-500/5",
     desc: "Backend Services",
   },
   ui: {
     dot: "bg-fuchsia-500 shadow-[0_0_8px_rgba(217,70,239,0.6)]",
     text: "text-fuchsia-400",
-    border: "hover:border-fuchsia-500/30 border-white/5",
+    border: "hover:border-fuchsia-500/30 border-border",
     bg: "bg-fuchsia-500/5",
     desc: "Design & Frontend",
   },
   embedded: {
     dot: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]",
     text: "text-amber-400",
-    border: "hover:border-amber-500/30 border-white/5",
+    border: "hover:border-amber-500/30 border-border",
     bg: "bg-amber-500/5",
     desc: "Firmware & IoT",
   },
   ml: {
     dot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]",
     text: "text-emerald-400",
-    border: "hover:border-emerald-500/30 border-white/5",
+    border: "hover:border-emerald-500/30 border-border",
     bg: "bg-emerald-500/5",
     desc: "Machine Learning / AI",
   },
   tools: {
     dot: "bg-zinc-400 shadow-[0_0_8px_rgba(161,161,170,0.6)]",
-    text: "text-zinc-300",
-    border: "hover:border-zinc-500/30 border-white/5",
+    text: "text-foreground",
+    border: "hover:border-zinc-500/30 border-border",
     bg: "bg-zinc-500/5",
     desc: "CLI & System Tools",
   },
   labs: {
     dot: "bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]",
     text: "text-orange-400",
-    border: "hover:border-orange-500/30 border-white/5",
+    border: "hover:border-orange-500/30 border-border",
     bg: "bg-orange-500/5",
     desc: "Experimental Sandbox",
   },
   content: {
     dot: "bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.6)]",
     text: "text-pink-400",
-    border: "hover:border-pink-500/30 border-white/5",
+    border: "hover:border-pink-500/30 border-border",
     bg: "bg-pink-500/5",
     desc: "Media, Content & Docs",
   },
@@ -203,14 +208,14 @@ const customCategoryStyles = [
   {
     dot: "bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.6)]",
     text: "text-violet-400",
-    border: "hover:border-violet-500/30 border-white/5",
+    border: "hover:border-violet-500/30 border-border",
     bg: "bg-violet-500/5",
     desc: "Custom Folder",
   },
   {
     dot: "bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.6)]",
     text: "text-teal-400",
-    border: "hover:border-teal-500/30 border-white/5",
+    border: "hover:border-teal-500/30 border-border",
     bg: "bg-teal-500/5",
     desc: "Custom Folder",
   },
@@ -227,26 +232,26 @@ function getCategoryStyle(catName: string, index: number) {
 // Right Panel Directory Tree Simulator Component
 function DirectoryTree({ baseDir, categories }: { baseDir: string; categories: string[] }) {
   return (
-    <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden h-full">
-      <CardHeader className="pb-4 border-b border-white/5 bg-zinc-950/20">
-        <CardTitle className="text-xs font-bold tracking-widest uppercase text-indigo-400 flex items-center gap-2.5">
-          <Eye className="size-4 text-indigo-400" />
+    <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden h-full">
+      <CardHeader className="pb-4 border-b border-border bg-card/20">
+        <CardTitle className="text-xs font-bold tracking-widest uppercase text-primary flex items-center gap-2.5">
+          <Eye className="size-4 text-primary" />
           Workspace Tree Preview
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6 space-y-4 font-mono text-xs">
-        <p className="text-xs font-sans text-zinc-400 leading-relaxed mb-2">
+        <p className="text-xs font-sans text-muted-foreground leading-relaxed mb-2">
           Simulator displaying how categorized folders are structured on disk in real time:
         </p>
 
-        <div className="bg-black/40 border border-white/5 p-5 rounded-lg space-y-2 select-all max-h-[380px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-          <div className="flex items-center gap-2 text-indigo-400 font-bold">
+        <div className="bg-background/40 border border-border p-5 rounded-lg space-y-2 select-all max-h-[380px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+          <div className="flex items-center gap-2 text-primary font-bold">
             <span>📁</span>
             <span>{baseDir || "~/projects"}</span>
           </div>
 
           {categories.length === 0 ? (
-            <div className="text-zinc-600 pl-4 py-2 italic">
+            <div className="text-muted-foreground pl-4 py-2 italic">
               No custom category folders.
             </div>
           ) : (
@@ -254,7 +259,7 @@ function DirectoryTree({ baseDir, categories }: { baseDir: string; categories: s
               const style = getCategoryStyle(cat, idx);
               return (
                 <div key={cat} className="flex items-center gap-2 pl-4 py-0.5 group">
-                  <span className="text-zinc-700/80">├──</span>
+                  <span className="text-muted-foreground">├──</span>
                   <span>📁</span>
                   <span className={`capitalize font-semibold ${style.text}`}>{cat}/</span>
                 </div>
@@ -263,17 +268,17 @@ function DirectoryTree({ baseDir, categories }: { baseDir: string; categories: s
           )}
           {/* Always display warning fallback folder */}
           <div className="flex items-center gap-2 pl-4 py-0.5">
-            <span className="text-zinc-700/80">└──</span>
+            <span className="text-muted-foreground">└──</span>
             <span>📁</span>
             <span className="text-rose-400/90 font-bold">undefined/</span>
-            <span className="text-[10px] text-zinc-600 font-sans italic">(Fallback sandbox)</span>
+            <span className="text-[10px] text-muted-foreground font-sans italic">(Fallback sandbox)</span>
           </div>
         </div>
 
-        <div className="p-3 bg-zinc-900/30 border border-white/5 rounded-lg text-[10px] font-sans text-zinc-500 leading-relaxed space-y-1">
-          <p className="font-semibold text-zinc-400">Preview Specifications</p>
+        <div className="p-3 bg-muted/30 border border-border rounded-lg text-[10px] font-sans text-muted-foreground leading-relaxed space-y-1">
+          <p className="font-semibold text-muted-foreground">Preview Specifications</p>
           <p>• Root directory modifies dynamically based on Workspaces setting.</p>
-          <p>• Unmapped or deactivated categories fallback directly to <code className="bg-zinc-800/80 text-zinc-300 font-mono px-1 rounded border border-white/5">undefined</code> sandbox.</p>
+          <p>• Unmapped or deactivated categories fallback directly to <code className="bg-muted/80 text-foreground font-mono px-1 rounded border border-border">undefined</code> sandbox.</p>
         </div>
       </CardContent>
     </Card>
@@ -833,11 +838,13 @@ export function SettingsPanel({
 
   const tabs = [
     { id: "general", label: "General", icon: Sliders },
+    { id: "appearance", label: "Appearance", icon: Palette },
     { id: "terminal", label: "Terminal", icon: Terminal },
     { id: "categories", label: "Categories", icon: Layers },
     { id: "blueprints", label: "Blueprints", icon: Sparkles },
     { id: "agents", label: "AI Agents", icon: Bot },
     { id: "rules", label: "Rules Config", icon: BookOpen },
+    { id: "updates", label: "Updates", icon: DownloadCloud },
     { id: "engine", label: "Engine Specs", icon: Info },
   ];
 
@@ -853,10 +860,10 @@ export function SettingsPanel({
   return (
     <div className="h-full overflow-hidden flex flex-col w-full max-w-7xl mx-auto px-6 lg:px-8 pt-8 lg:pt-12">
       {/* Title Header with centered spacing and nice boundaries */}
-      <div className="border-b border-white/5 pb-4 shrink-0 flex items-center justify-between">
+      <div className="border-b border-border pb-4 shrink-0 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent flex items-center gap-3">
-            <button type="button" onClick={onClose} className="group inline-flex items-center justify-center p-1.5 rounded-lg border border-white/5 bg-zinc-900/60 text-zinc-400 hover:text-white hover:border-white/10 hover:bg-white/5 transition-all duration-200 mr-1" title="Close settings">
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-transparent flex items-center gap-3">
+            <button type="button" onClick={onClose} className="group inline-flex items-center justify-center p-1.5 rounded-lg border border-border bg-muted/60 text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent transition-all duration-200 mr-1" title="Close settings">
               <ArrowLeft className="size-5 transition-transform group-hover:-translate-x-0.5" />
             </button>
             Settings
@@ -868,7 +875,7 @@ export function SettingsPanel({
       </div>
 
       {/* Tabs Pill Navigation Shell */}
-      <div className="flex items-center gap-2 mt-5 mb-6 border-b border-white/5 pb-3 shrink-0">
+      <div className="flex items-center gap-2 mt-5 mb-6 border-b border-border pb-3 shrink-0">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -878,8 +885,8 @@ export function SettingsPanel({
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
                 isActive
-                  ? "bg-indigo-600/15 text-indigo-400 border border-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.08)]"
-                  : "text-zinc-400 hover:text-white border border-transparent hover:bg-white/5"
+                  ? "bg-primary/15 text-primary border border-primary/20 shadow-[0_0_10px_rgba(99,102,241,0.08)]"
+                  : "text-muted-foreground hover:text-foreground border border-transparent hover:bg-accent"
               }`}
             >
               <Icon className="size-3.5" />
@@ -899,15 +906,15 @@ export function SettingsPanel({
           {activeTab === "general" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               {/* Base Directory Configuration Card */}
-              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
+              <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
                 <CardHeader className="p-6 pb-4">
-                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-indigo-400 flex items-center gap-2.5">
-                    <FolderOpen className="size-4.5 text-indigo-400" />
+                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-primary flex items-center gap-2.5">
+                    <FolderOpen className="size-4.5 text-primary" />
                     Base Workspaces Directory
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-5">
-                  <p className="text-sm text-zinc-400 leading-relaxed">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     All organized developer projects are structured under this root path. Changing this will update the destination for future sorting operations.
                   </p>
                   <div className="flex gap-3">
@@ -918,12 +925,12 @@ export function SettingsPanel({
                           setBaseDir(e.target.value);
                           setBaseMessage(null);
                         }}
-                        className="font-mono text-sm border-white/5 bg-black/40 h-10 pr-10 focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                        className="font-mono text-sm border-border bg-background/40 h-10 pr-10 focus-visible:ring-1 focus-visible:ring-ring/50"
                         placeholder="~/projects"
                       />
                       <button
                         onClick={handleBrowseFolder}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                         title="Choose folder in file explorer"
                       >
                         <FolderOpen className="size-4" />
@@ -932,7 +939,7 @@ export function SettingsPanel({
                     <Button
                       onClick={handleSaveBase}
                       disabled={savingBase || !baseDir.trim() || baseDir === config?.base}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold h-10 px-5 shadow-sm transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                      className="bg-primary hover:bg-primary/90 text-foreground font-semibold h-10 px-5 shadow-sm transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                     >
                       {savingBase ? (
                         "Saving..."
@@ -947,7 +954,7 @@ export function SettingsPanel({
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-muted-foreground">
                       Active configuration:{" "}
-                      <code className="text-xs font-mono bg-zinc-900/60 text-indigo-300 px-2 py-0.5 rounded border border-white/5">
+                      <code className="text-xs font-mono bg-muted/60 text-primary px-2 py-0.5 rounded border border-border">
                         {config?.base ?? "~/projects"}
                       </code>
                     </p>
@@ -970,17 +977,17 @@ export function SettingsPanel({
               </Card>
 
               {/* Detected Editors Card */}
-              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
-                <CardHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-950/20">
+              <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
+                <CardHeader className="p-6 pb-4 border-b border-border bg-card/20">
                   <CardTitle className="text-xs font-bold tracking-widest uppercase text-cyan-400 flex items-center gap-2.5">
                     <Code className="size-4.5 text-cyan-400" />
                     Detected System Editors
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
-                  <p className="text-xs text-zinc-400 leading-relaxed">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     These active editors are detected on your local system path. Trigger the terminal command{" "}
-                    <code className="text-[10px] bg-zinc-900/60 text-cyan-300 px-1.5 py-0.5 rounded border border-white/5 font-mono">
+                    <code className="text-[10px] bg-muted/60 text-cyan-300 px-1.5 py-0.5 rounded border border-border font-mono">
                       projm editors
                     </code>{" "}
                     to scan and display complete bin specifications.
@@ -999,14 +1006,14 @@ export function SettingsPanel({
                         <Badge
                           key={editor.binary}
                           variant="secondary"
-                          className="gap-2 py-1.5 px-3 border border-white/5 bg-zinc-900/50 text-[10px] font-mono text-zinc-300"
+                          className="gap-2 py-1.5 px-3 border border-border bg-muted/50 text-[10px] font-mono text-foreground"
                         >
                           <span className="text-cyan-400/80 font-bold">
                             {editorIcons[editor.binary] ?? "◇"}
                           </span>
                           {editor.name}
                           {editors.length > 1 && (
-                            <span className="text-[9px] text-zinc-500 font-normal">
+                            <span className="text-[9px] text-muted-foreground font-normal">
                               ({editor.binary})
                             </span>
                           )}
@@ -1015,10 +1022,10 @@ export function SettingsPanel({
                     </div>
                   )}
 
-                  <Separator className="bg-white/5" />
+                  <Separator className="bg-accent" />
 
-                  <div className="text-[11px] text-zinc-500 space-y-1.5 leading-relaxed">
-                    <p className="font-semibold text-zinc-300">
+                  <div className="text-[11px] text-muted-foreground space-y-1.5 leading-relaxed">
+                    <p className="font-semibold text-foreground">
                       Editor Launch Mechanics
                     </p>
                     <ul className="list-disc list-inside space-y-0.5 pl-1">
@@ -1032,50 +1039,53 @@ export function SettingsPanel({
             </div>
           )}
 
+          {/* TAB: APPEARANCE */}
+          {activeTab === "appearance" && <ThemeSwitcher />}
+
           {/* TAB: TERMINAL */}
           {activeTab === "terminal" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               {/* Embedded Shell Card */}
-              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
+              <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
                 <CardHeader className="p-6 pb-4">
-                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-indigo-400 flex items-center gap-2.5">
-                    <Terminal className="size-4.5 text-indigo-400" />
+                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-primary flex items-center gap-2.5">
+                    <Terminal className="size-4.5 text-primary" />
                     Embedded Terminal Shell
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-5">
-                  <p className="text-sm text-zinc-400 leading-relaxed">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Which shell the in-app terminal spawns for each project tab. Choose{" "}
-                    <span className="text-zinc-200 font-medium">Auto</span> to detect from{" "}
-                    <code className="text-[10px] bg-zinc-900/60 text-indigo-300 px-1.5 py-0.5 rounded border border-white/5 font-mono">$SHELL</code>,
+                    <span className="text-foreground font-medium">Auto</span> to detect from{" "}
+                    <code className="text-[10px] bg-muted/60 text-primary px-1.5 py-0.5 rounded border border-border font-mono">$SHELL</code>,
                     or pick a specific shell. Applies to terminals opened after saving.
                   </p>
                   <div className="flex gap-3">
-                    <select
+                    <Dropdown
+                      className="flex-1"
+                      mono
                       value={shellSel}
-                      onChange={(e) => {
-                        setShellSel(e.target.value);
+                      onChange={(v) => {
+                        setShellSel(v);
                         setShellMessage(null);
                       }}
-                      className="flex-1 h-10 rounded-md border border-white/5 bg-black/40 px-3 font-mono text-sm text-zinc-200 outline-none focus-visible:ring-1 focus-visible:ring-indigo-500/50"
-                    >
-                      <option value="auto" className="bg-zinc-950">
-                        Auto{termConfig ? ` (→ ${termConfig.resolvedShell})` : ""}
-                      </option>
-                      {(termConfig?.shells ?? []).map((s) => (
-                        <option key={s.name} value={s.name} className="bg-zinc-950">
-                          {s.name}
-                          {s.installed ? "" : " — not found"}
-                        </option>
-                      ))}
-                      <option value="__custom__" className="bg-zinc-950">
-                        Custom path…
-                      </option>
-                    </select>
+                      options={[
+                        {
+                          value: "auto",
+                          label: `Auto${termConfig ? ` (→ ${termConfig.resolvedShell})` : ""}`,
+                        },
+                        ...(termConfig?.shells ?? []).map((s) => ({
+                          value: s.name,
+                          label: s.name,
+                          hint: s.installed ? undefined : "— not found",
+                        })),
+                        { value: "__custom__", label: "Custom path…" },
+                      ]}
+                    />
                     <Button
                       onClick={handleSaveShell}
                       disabled={savingShell}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold h-10 px-5 shadow-sm transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                      className="bg-primary hover:bg-primary/90 text-foreground font-semibold h-10 px-5 shadow-sm transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                     >
                       {savingShell ? (
                         "Saving..."
@@ -1094,7 +1104,7 @@ export function SettingsPanel({
                         setShellCustom(e.target.value);
                         setShellMessage(null);
                       }}
-                      className="font-mono text-sm border-white/5 bg-black/40 h-10 focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                      className="font-mono text-sm border-border bg-background/40 h-10 focus-visible:ring-1 focus-visible:ring-ring/50"
                       placeholder="/usr/bin/fish"
                     />
                   )}
@@ -1112,47 +1122,45 @@ export function SettingsPanel({
               </Card>
 
               {/* External Emulator Card */}
-              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
-                <CardHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-950/20">
+              <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
+                <CardHeader className="p-6 pb-4 border-b border-border bg-card/20">
                   <CardTitle className="text-xs font-bold tracking-widest uppercase text-cyan-400 flex items-center gap-2.5">
                     <Terminal className="size-4.5 text-cyan-400" />
                     External Terminal Emulator
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-5">
-                  <p className="text-sm text-zinc-400 leading-relaxed">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Which emulator the{" "}
-                    <span className="text-zinc-200 font-medium">Open in terminal</span> action launches at
+                    <span className="text-foreground font-medium">Open in terminal</span> action launches at
                     a project directory.{" "}
-                    <span className="text-zinc-200 font-medium">Auto</span> probes common emulators on your{" "}
-                    <code className="text-[10px] bg-zinc-900/60 text-cyan-300 px-1.5 py-0.5 rounded border border-white/5 font-mono">$PATH</code>.
+                    <span className="text-foreground font-medium">Auto</span> probes common emulators on your{" "}
+                    <code className="text-[10px] bg-muted/60 text-cyan-300 px-1.5 py-0.5 rounded border border-border font-mono">$PATH</code>.
                   </p>
                   <div className="flex gap-3">
-                    <select
+                    <Dropdown
+                      className="flex-1"
+                      triggerClassName="focus-visible:ring-cyan-500/50"
+                      mono
                       value={emulatorSel}
-                      onChange={(e) => {
-                        setEmulatorSel(e.target.value);
+                      onChange={(v) => {
+                        setEmulatorSel(v);
                         setEmulatorMessage(null);
                       }}
-                      className="flex-1 h-10 rounded-md border border-white/5 bg-black/40 px-3 font-mono text-sm text-zinc-200 outline-none focus-visible:ring-1 focus-visible:ring-cyan-500/50"
-                    >
-                      <option value="auto" className="bg-zinc-950">
-                        Auto (detect)
-                      </option>
-                      {(termConfig?.emulators ?? []).map((e) => (
-                        <option key={e.name} value={e.name} className="bg-zinc-950">
-                          {e.name}
-                          {e.installed ? "" : " — not found"}
-                        </option>
-                      ))}
-                      <option value="__custom__" className="bg-zinc-950">
-                        Custom…
-                      </option>
-                    </select>
+                      options={[
+                        { value: "auto", label: "Auto (detect)" },
+                        ...(termConfig?.emulators ?? []).map((e) => ({
+                          value: e.name,
+                          label: e.name,
+                          hint: e.installed ? undefined : "— not found",
+                        })),
+                        { value: "__custom__", label: "Custom…" },
+                      ]}
+                    />
                     <Button
                       onClick={handleSaveEmulator}
                       disabled={savingEmulator}
-                      className="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold h-10 px-5 shadow-sm transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                      className="bg-cyan-600 hover:bg-cyan-500 text-foreground font-semibold h-10 px-5 shadow-sm transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                     >
                       {savingEmulator ? (
                         "Saving..."
@@ -1171,7 +1179,7 @@ export function SettingsPanel({
                         setEmulatorCustom(e.target.value);
                         setEmulatorMessage(null);
                       }}
-                      className="font-mono text-sm border-white/5 bg-black/40 h-10 focus-visible:ring-1 focus-visible:ring-cyan-500/50"
+                      className="font-mono text-sm border-border bg-background/40 h-10 focus-visible:ring-1 focus-visible:ring-cyan-500/50"
                       placeholder="kitty"
                     />
                   )}
@@ -1194,7 +1202,7 @@ export function SettingsPanel({
           {activeTab === "categories" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               {/* Folder Categories Manager */}
-              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
+              <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
                 <CardHeader className="p-6 pb-4">
                   <CardTitle className="text-xs font-bold tracking-widest uppercase text-emerald-400 flex items-center gap-2.5">
                     <Folder className="size-4.5 text-emerald-400" />
@@ -1202,8 +1210,8 @@ export function SettingsPanel({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-6">
-                  <p className="text-sm text-zinc-400 leading-relaxed">
-                    Manage active folder structures inside your base directory. Projects are automatically sorted into these category folders. Removing a category redirects unrecognized items to the fallback <code className="text-xs text-zinc-300 bg-zinc-800/60 border border-white/5 px-2 py-0.5 rounded font-mono">undefined</code> sandbox directory.
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Manage active folder structures inside your base directory. Projects are automatically sorted into these category folders. Removing a category redirects unrecognized items to the fallback <code className="text-xs text-foreground bg-muted/60 border border-border px-2 py-0.5 rounded font-mono">undefined</code> sandbox directory.
                   </p>
 
                   {/* Unified Visual Input Weight Fields */}
@@ -1222,7 +1230,7 @@ export function SettingsPanel({
                               handleAddCategory();
                             }
                           }}
-                          className="text-sm border-white/5 bg-black/40 h-10 focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                          className="text-sm border-border bg-background/40 h-10 focus-visible:ring-1 focus-visible:ring-ring/50"
                           placeholder="Type new category (e.g. sandbox, playground)..."
                         />
                         {newCatInput && (
@@ -1231,7 +1239,7 @@ export function SettingsPanel({
                               setNewCatInput("");
                               setNewCatError(null);
                             }}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <X className="size-4" />
                           </button>
@@ -1240,7 +1248,7 @@ export function SettingsPanel({
                       <Button
                         onClick={handleAddCategory}
                         disabled={!newCatInput.trim() || savingCategories}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold h-10 px-5 transition-all duration-150 active:scale-95 disabled:opacity-50"
+                        className="bg-primary hover:bg-primary/90 text-foreground font-semibold h-10 px-5 transition-all duration-150 active:scale-95 disabled:opacity-50"
                       >
                         <Plus className="size-4 mr-1.5" />
                         Add Folder
@@ -1255,21 +1263,21 @@ export function SettingsPanel({
                   </div>
 
                   {/* Separator and Header for Active Folders Structure */}
-                  <div className="mt-8 pt-6 border-t border-white/5 space-y-4">
+                  <div className="mt-8 pt-6 border-t border-border space-y-4">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest block">
+                      <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">
                         Active Folders Structure
                       </label>
-                      <span className="text-[10px] text-zinc-500 font-mono">
+                      <span className="text-[10px] text-muted-foreground font-mono">
                         Total: {categories.length} folders
                       </span>
                     </div>
 
                     {/* Viewport Categories Grid with Fade indicator and scrollbar */}
                     {categories.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/20 border border-dashed border-white/5 rounded-xl">
+                      <div className="flex flex-col items-center justify-center p-8 bg-muted/20 border border-dashed border-border rounded-xl">
                         <ShieldAlert className="size-8 text-amber-500/60 mb-2" />
-                        <p className="text-sm text-zinc-400">No active categories configured.</p>
+                        <p className="text-sm text-muted-foreground">No active categories configured.</p>
                         <p className="text-xs text-muted-foreground mt-1">Add one above to enable dynamic organization.</p>
                       </div>
                     ) : (
@@ -1291,14 +1299,14 @@ export function SettingsPanel({
                                   </div>
                                   <button
                                     onClick={() => handleRemoveCategory(cat)}
-                                    className="text-zinc-500 hover:text-rose-400 p-2 rounded-md hover:bg-rose-500/10 transition-all duration-150 opacity-80 hover:opacity-100"
+                                    className="text-muted-foreground hover:text-rose-400 p-2 rounded-md hover:bg-rose-500/10 transition-all duration-150 opacity-80 hover:opacity-100"
                                     title={`Remove ${cat} category`}
                                   >
                                     <Trash2 className="size-3.5" />
                                   </button>
                                 </div>
                                 
-                                <div className="mt-3 text-[10px] font-mono text-zinc-500 truncate select-all leading-normal">
+                                <div className="mt-3 text-[10px] font-mono text-muted-foreground truncate select-all leading-normal">
                                   Path: {baseDir || "~/projects"}/{cat}
                                 </div>
                               </div>
@@ -1310,13 +1318,13 @@ export function SettingsPanel({
                   </div>
 
                   {/* Cohesive Visual Color Coding Legend */}
-                  <div className="pt-4 border-t border-white/5 space-y-2">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block">
+                  <div className="pt-4 border-t border-border space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">
                       Category Color Code Legend
                     </label>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] text-zinc-400">
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] text-muted-foreground">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                         <span>Apps (Indigo)</span>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -1365,23 +1373,23 @@ export function SettingsPanel({
           {/* TAB 3: BLUEPRINTS (PROJECT CREATION TEMPLATES) */}
           {activeTab === "blueprints" && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
+              <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
                 <CardHeader className="p-6 pb-4">
-                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-indigo-400 flex items-center gap-2.5">
-                    <Sparkles className="size-4.5 text-indigo-400" />
+                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-primary flex items-center gap-2.5">
+                    <Sparkles className="size-4.5 text-primary" />
                     Project Blueprints
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-5">
-                  <p className="text-sm text-zinc-400 leading-relaxed">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Save command templates for scaffolding new projects. Use{" "}
-                    <code className="text-xs bg-zinc-800/60 text-zinc-300 px-1.5 py-0.5 rounded border border-white/5 font-mono">{`{name}`}</code>{" "}
+                    <code className="text-xs bg-muted/60 text-foreground px-1.5 py-0.5 rounded border border-border font-mono">{`{name}`}</code>{" "}
                     as an optional placeholder — you will be prompted for a project name when running.
                   </p>
 
                   {/* Add Blueprint Form */}
-                  <div className="p-4 bg-zinc-900/20 border border-white/5 rounded-xl space-y-3.5">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                  <div className="p-4 bg-muted/20 border border-border rounded-xl space-y-3.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       New Blueprint
                     </label>
                     <div className="space-y-3">
@@ -1389,13 +1397,13 @@ export function SettingsPanel({
                         value={newBlueprintName}
                         onChange={(e) => { setNewBlueprintName(e.target.value); setBlueprintError(null); }}
                         placeholder="Blueprint name (e.g. better-t-stack)"
-                        className="text-sm bg-black/40 border-white/5 h-10 focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                        className="text-sm bg-background/40 border-border h-10 focus-visible:ring-1 focus-visible:ring-ring/50"
                       />
                       <Input
                         value={newBlueprintCommand}
                         onChange={(e) => { setNewBlueprintCommand(e.target.value); setBlueprintError(null); }}
                         placeholder={`Command template (e.g. npx create-t3-app {name})`}
-                        className="text-sm bg-black/40 border-white/5 h-10 font-mono focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                        className="text-sm bg-background/40 border-border h-10 font-mono focus-visible:ring-1 focus-visible:ring-ring/50"
                       />
                       {blueprintError && (
                         <p className="text-xs text-rose-400 flex items-center gap-1.5">
@@ -1407,7 +1415,7 @@ export function SettingsPanel({
                         <Button
                           onClick={handleAddBlueprint}
                           disabled={!newBlueprintName.trim() || !newBlueprintCommand.trim() || savingBlueprint}
-                          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold h-9 px-4 text-xs transition-all active:scale-95 disabled:opacity-50"
+                          className="bg-primary hover:bg-primary/90 text-foreground font-semibold h-9 px-4 text-xs transition-all active:scale-95 disabled:opacity-50"
                         >
                           <Plus className="size-3.5 mr-1.5" />
                           {savingBlueprint ? "Adding..." : "Add Blueprint"}
@@ -1419,10 +1427,10 @@ export function SettingsPanel({
                   {/* Blueprints List */}
                   <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                     {blueprints.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/10 border border-dashed border-white/5 rounded-xl">
-                        <BookOpen className="size-8 text-zinc-600 mb-2" />
-                        <p className="text-xs text-zinc-400">No project blueprints saved yet.</p>
-                        <p className="text-[10px] text-zinc-500 mt-1">Add one above to get started.</p>
+                      <div className="flex flex-col items-center justify-center p-8 bg-muted/10 border border-dashed border-border rounded-xl">
+                        <BookOpen className="size-8 text-muted-foreground mb-2" />
+                        <p className="text-xs text-muted-foreground">No project blueprints saved yet.</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">Add one above to get started.</p>
                       </div>
                     ) : (
                       blueprints.map((bp, idx) => {
@@ -1430,7 +1438,7 @@ export function SettingsPanel({
                         return (
                           <div
                             key={bp.name}
-                            className="p-4 bg-zinc-900/20 border border-white/5 hover:border-white/10 rounded-xl space-y-3 transition-all"
+                            className="p-4 bg-muted/20 border border-border hover:border-border rounded-xl space-y-3 transition-all"
                           >
                             {isEditing ? (
                               /* Edit Mode */
@@ -1439,26 +1447,26 @@ export function SettingsPanel({
                                   value={editBlueprintName}
                                   onChange={(e) => setEditBlueprintName(e.target.value)}
                                   placeholder="Blueprint name"
-                                  className="h-8 text-xs bg-black/40 border-white/5 focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                                  className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50"
                                 />
                                 <Input
                                   value={editBlueprintCommand}
                                   onChange={(e) => setEditBlueprintCommand(e.target.value)}
                                   placeholder="Command template"
-                                  className="h-8 text-xs bg-black/40 border-white/5 font-mono focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                                  className="h-8 text-xs bg-background/40 border-border font-mono focus-visible:ring-1 focus-visible:ring-ring/50"
                                 />
                                 <div className="flex justify-end gap-2">
                                   <Button
                                     onClick={() => setEditingBlueprint(null)}
                                     variant="ghost"
-                                    className="text-xs text-zinc-400 hover:text-white h-8 px-3"
+                                    className="text-xs text-muted-foreground hover:text-foreground h-8 px-3"
                                   >
                                     Cancel
                                   </Button>
                                   <Button
                                     onClick={() => handleSaveEditBlueprint(bp.name)}
                                     disabled={!editBlueprintName.trim() || !editBlueprintCommand.trim()}
-                                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold h-8 px-3 transition-all active:scale-95"
+                                    className="bg-primary hover:bg-primary/90 text-foreground text-xs font-semibold h-8 px-3 transition-all active:scale-95"
                                   >
                                     <Save className="size-3 mr-1.5" />
                                     Save
@@ -1470,13 +1478,13 @@ export function SettingsPanel({
                               <>
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${idx % 2 === 0 ? "bg-indigo-500" : "bg-cyan-500"} shadow-[0_0_6px_rgba(99,102,241,0.5)]`} />
-                                    <span className="font-mono text-sm font-semibold text-zinc-200">{bp.name}</span>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${idx % 2 === 0 ? "bg-primary" : "bg-cyan-500"} shadow-[0_0_6px_rgba(99,102,241,0.5)]`} />
+                                    <span className="font-mono text-sm font-semibold text-foreground">{bp.name}</span>
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <button
                                       onClick={() => startEditBlueprint(bp)}
-                                      className="p-1.5 text-zinc-500 hover:text-white hover:bg-white/5 rounded transition-all"
+                                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-all"
                                       title="Edit blueprint"
                                     >
                                       <svg className="size-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -1485,14 +1493,14 @@ export function SettingsPanel({
                                     </button>
                                     <button
                                       onClick={() => handleDeleteBlueprint(bp.name)}
-                                      className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all"
+                                      className="p-1.5 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all"
                                       title="Delete blueprint"
                                     >
                                       <Trash2 className="size-3.5" />
                                     </button>
                                   </div>
                                 </div>
-                                <div className="text-[11px] font-mono text-zinc-500 bg-black/30 px-3 py-2 rounded-lg border border-white/5 truncate select-all">
+                                <div className="text-[11px] font-mono text-muted-foreground bg-background/30 px-3 py-2 rounded-lg border border-border truncate select-all">
                                   {bp.command}
                                 </div>
                               </>
@@ -1525,7 +1533,7 @@ export function SettingsPanel({
           {/* TAB: AI AGENTS (CODING AGENT CLIS) */}
           {activeTab === "agents" && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
+              <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
                 <CardHeader className="p-6 pb-4">
                   <CardTitle className="text-xs font-bold tracking-widest uppercase text-emerald-400 flex items-center gap-2.5">
                     <Bot className="size-4.5 text-emerald-400" />
@@ -1533,16 +1541,16 @@ export function SettingsPanel({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-5">
-                  <p className="text-sm text-zinc-400 leading-relaxed">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Configure the AI agent CLIs you can launch inside any project&apos;s shell —
                     Claude Code, Codex, Gemini CLI, OpenCode, Aider, or any custom command.
-                    Launch them from a project&apos;s <span className="text-zinc-300 font-semibold">Run &amp; Shell</span> panel
-                    via the <span className="text-zinc-300 font-semibold">AI Agent</span> button.
+                    Launch them from a project&apos;s <span className="text-foreground font-semibold">Run &amp; Shell</span> panel
+                    via the <span className="text-foreground font-semibold">AI Agent</span> button.
                   </p>
 
                   {/* Add Agent Form */}
-                  <div className="p-4 bg-zinc-900/20 border border-white/5 rounded-xl space-y-3.5">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                  <div className="p-4 bg-muted/20 border border-border rounded-xl space-y-3.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       New Agent
                     </label>
                     <div className="space-y-3">
@@ -1550,13 +1558,13 @@ export function SettingsPanel({
                         value={newAgentName}
                         onChange={(e) => { setNewAgentName(e.target.value); setAgentError(null); }}
                         placeholder="Agent name (e.g. Claude Code)"
-                        className="text-sm bg-black/40 border-white/5 h-10 focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+                        className="text-sm bg-background/40 border-border h-10 focus-visible:ring-1 focus-visible:ring-emerald-500/50"
                       />
                       <Input
                         value={newAgentCommand}
                         onChange={(e) => { setNewAgentCommand(e.target.value); setAgentError(null); }}
                         placeholder="Launch command (e.g. claude, codex --model gpt-5, aider)"
-                        className="text-sm bg-black/40 border-white/5 h-10 font-mono focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+                        className="text-sm bg-background/40 border-border h-10 font-mono focus-visible:ring-1 focus-visible:ring-emerald-500/50"
                       />
                       {agentError && (
                         <p className="text-xs text-rose-400 flex items-center gap-1.5">
@@ -1568,7 +1576,7 @@ export function SettingsPanel({
                         <Button
                           onClick={handleAddAgent}
                           disabled={!newAgentName.trim() || !newAgentCommand.trim() || savingAgent}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold h-9 px-4 text-xs transition-all active:scale-95 disabled:opacity-50"
+                          className="bg-emerald-600 hover:bg-emerald-500 text-foreground font-semibold h-9 px-4 text-xs transition-all active:scale-95 disabled:opacity-50"
                         >
                           <Plus className="size-3.5 mr-1.5" />
                           {savingAgent ? "Adding..." : "Add Agent"}
@@ -1580,10 +1588,10 @@ export function SettingsPanel({
                   {/* Agents List */}
                   <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                     {agents.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/10 border border-dashed border-white/5 rounded-xl">
-                        <Bot className="size-8 text-zinc-600 mb-2" />
-                        <p className="text-xs text-zinc-400">No AI agents configured yet.</p>
-                        <p className="text-[10px] text-zinc-500 mt-1">Add one above to get started.</p>
+                      <div className="flex flex-col items-center justify-center p-8 bg-muted/10 border border-dashed border-border rounded-xl">
+                        <Bot className="size-8 text-muted-foreground mb-2" />
+                        <p className="text-xs text-muted-foreground">No AI agents configured yet.</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">Add one above to get started.</p>
                       </div>
                     ) : (
                       agents.map((agent) => {
@@ -1591,7 +1599,7 @@ export function SettingsPanel({
                         return (
                           <div
                             key={agent.name}
-                            className="p-4 bg-zinc-900/20 border border-white/5 hover:border-white/10 rounded-xl space-y-3 transition-all"
+                            className="p-4 bg-muted/20 border border-border hover:border-border rounded-xl space-y-3 transition-all"
                           >
                             {isEditing ? (
                               /* Edit Mode */
@@ -1600,26 +1608,26 @@ export function SettingsPanel({
                                   value={editAgentName}
                                   onChange={(e) => setEditAgentName(e.target.value)}
                                   placeholder="Agent name"
-                                  className="h-8 text-xs bg-black/40 border-white/5 focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+                                  className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-emerald-500/50"
                                 />
                                 <Input
                                   value={editAgentCommand}
                                   onChange={(e) => setEditAgentCommand(e.target.value)}
                                   placeholder="Launch command"
-                                  className="h-8 text-xs bg-black/40 border-white/5 font-mono focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+                                  className="h-8 text-xs bg-background/40 border-border font-mono focus-visible:ring-1 focus-visible:ring-emerald-500/50"
                                 />
                                 <div className="flex justify-end gap-2">
                                   <Button
                                     onClick={() => setEditingAgent(null)}
                                     variant="ghost"
-                                    className="text-xs text-zinc-400 hover:text-white h-8 px-3"
+                                    className="text-xs text-muted-foreground hover:text-foreground h-8 px-3"
                                   >
                                     Cancel
                                   </Button>
                                   <Button
                                     onClick={() => handleSaveEditAgent(agent.name)}
                                     disabled={!editAgentName.trim() || !editAgentCommand.trim()}
-                                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold h-8 px-3 transition-all active:scale-95"
+                                    className="bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-semibold h-8 px-3 transition-all active:scale-95"
                                   >
                                     <Save className="size-3 mr-1.5" />
                                     Save
@@ -1631,15 +1639,15 @@ export function SettingsPanel({
                               <>
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2.5">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${agent.installed ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-zinc-600"}`} />
-                                    <span className="font-mono text-sm font-semibold text-zinc-200">{agent.name}</span>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${agent.installed ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-muted"}`} />
+                                    <span className="font-mono text-sm font-semibold text-foreground">{agent.name}</span>
                                     {agent.installed ? (
                                       <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-mono py-0 px-1.5">
                                         <Check className="size-2.5 mr-1" />
                                         installed
                                       </Badge>
                                     ) : (
-                                      <Badge className="bg-zinc-800/60 text-zinc-500 border border-white/5 text-[9px] font-mono py-0 px-1.5">
+                                      <Badge className="bg-muted/60 text-muted-foreground border border-border text-[9px] font-mono py-0 px-1.5">
                                         not found on $PATH
                                       </Badge>
                                     )}
@@ -1647,7 +1655,7 @@ export function SettingsPanel({
                                   <div className="flex items-center gap-1">
                                     <button
                                       onClick={() => startEditAgent(agent)}
-                                      className="p-1.5 text-zinc-500 hover:text-white hover:bg-white/5 rounded transition-all"
+                                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-all"
                                       title="Edit agent"
                                     >
                                       <svg className="size-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -1656,19 +1664,19 @@ export function SettingsPanel({
                                     </button>
                                     <button
                                       onClick={() => handleDeleteAgent(agent.name)}
-                                      className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all"
+                                      className="p-1.5 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all"
                                       title="Delete agent"
                                     >
                                       <Trash2 className="size-3.5" />
                                     </button>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500 bg-black/30 px-3 py-2 rounded-lg border border-white/5">
-                                  <Terminal className="size-3 shrink-0 text-zinc-600" />
+                                <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground bg-background/30 px-3 py-2 rounded-lg border border-border">
+                                  <Terminal className="size-3 shrink-0 text-muted-foreground" />
                                   <span className="truncate select-all">{agent.command}</span>
                                 </div>
                                 {agent.installed && agent.path && (
-                                  <p className="text-[10px] font-mono text-zinc-600 truncate" title={agent.path}>
+                                  <p className="text-[10px] font-mono text-muted-foreground truncate" title={agent.path}>
                                     {agent.path}
                                   </p>
                                 )}
@@ -1702,14 +1710,14 @@ export function SettingsPanel({
           {/* TAB 4: RULES CONFIG (FORMERLY BLUEPRINT RULES) */}
           {activeTab === "rules" && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
-                <CardHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-950/20 flex flex-row items-center justify-between">
+              <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
+                <CardHeader className="p-6 pb-4 border-b border-border bg-card/20 flex flex-row items-center justify-between">
                   <div className="space-y-1">
-                    <CardTitle className="text-xs font-bold tracking-widest uppercase text-indigo-400 flex items-center gap-2.5">
-                      <BookOpen className="size-4.5 text-indigo-400" />
+                    <CardTitle className="text-xs font-bold tracking-widest uppercase text-primary flex items-center gap-2.5">
+                      <BookOpen className="size-4.5 text-primary" />
                       Classification Rules Config
                     </CardTitle>
-                    <p className="text-[10px] text-zinc-500 lowercase leading-none">
+                    <p className="text-[10px] text-muted-foreground lowercase leading-none">
                       Custom classification rules — evaluated top to bottom inside ~/.config/projm/rules.toml
                     </p>
                   </div>
@@ -1728,30 +1736,30 @@ export function SettingsPanel({
                   {/* VISUAL DESIGNER MODE */}
                   {isVisualMode ? (
                     <div className="space-y-4">
-                      <p className="text-xs text-zinc-400 leading-relaxed">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
                         Customize custom priority path mappings. The organizer runs these rules sequentially, placing matched directories into your dynamic category folders immediately.
                       </p>
 
                       <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent py-1">
                         {rulesList.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/10 border border-dashed border-white/5 rounded-xl">
-                            <BookOpen className="size-8 text-zinc-600 mb-2" />
-                            <p className="text-xs text-zinc-400">No custom priority rules set up yet.</p>
-                            <p className="text-[10px] text-zinc-500 mt-1">Create one below to establish overrides.</p>
+                          <div className="flex flex-col items-center justify-center p-8 bg-muted/10 border border-dashed border-border rounded-xl">
+                            <BookOpen className="size-8 text-muted-foreground mb-2" />
+                            <p className="text-xs text-muted-foreground">No custom priority rules set up yet.</p>
+                            <p className="text-[10px] text-muted-foreground mt-1">Create one below to establish overrides.</p>
                           </div>
                         ) : (
                           rulesList.map((rule, idx) => (
                             <div
                               key={idx}
-                              className="p-4 bg-zinc-900/20 border border-white/5 hover:border-white/10 rounded-xl space-y-3.5 transition-all"
+                              className="p-4 bg-muted/20 border border-border hover:border-border rounded-xl space-y-3.5 transition-all"
                             >
                               {/* Rule Card Header */}
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <Badge className="bg-zinc-800/80 text-zinc-400 font-mono text-[9px] border border-white/5">
+                                  <Badge className="bg-muted/80 text-muted-foreground font-mono text-[9px] border border-border">
                                     Priority #{idx + 1}
                                   </Badge>
-                                  <span className="text-[10px] text-zinc-500 italic">
+                                  <span className="text-[10px] text-muted-foreground italic">
                                     (Evaluates {idx === 0 ? "first" : "next"})
                                   </span>
                                 </div>
@@ -1761,7 +1769,7 @@ export function SettingsPanel({
                                   <button
                                     onClick={() => handleMoveRule(idx, "up")}
                                     disabled={idx === 0}
-                                    className="p-1 text-zinc-500 hover:text-white hover:bg-white/5 rounded disabled:opacity-30 disabled:pointer-events-none"
+                                    className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded disabled:opacity-30 disabled:pointer-events-none"
                                     title="Increase Priority (Move Up)"
                                   >
                                     <ChevronUp className="size-4" />
@@ -1769,15 +1777,15 @@ export function SettingsPanel({
                                   <button
                                     onClick={() => handleMoveRule(idx, "down")}
                                     disabled={idx === rulesList.length - 1}
-                                    className="p-1 text-zinc-500 hover:text-white hover:bg-white/5 rounded disabled:opacity-30 disabled:pointer-events-none"
+                                    className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded disabled:opacity-30 disabled:pointer-events-none"
                                     title="Decrease Priority (Move Down)"
                                   >
                                     <ChevronDown className="size-4" />
                                   </button>
-                                  <Separator orientation="vertical" className="h-4 bg-white/5 mx-1" />
+                                  <Separator orientation="vertical" className="h-4 bg-accent mx-1" />
                                   <button
                                     onClick={() => handleRemoveRule(idx)}
-                                    className="p-1 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded"
+                                    className="p-1 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded"
                                     title="Delete custom rule"
                                   >
                                     <Trash2 className="size-4" />
@@ -1788,78 +1796,83 @@ export function SettingsPanel({
                               {/* Rule Matching Fields */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                                 <div className="space-y-1">
-                                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                                     Folder Name Matches Exactly
                                   </label>
                                   <Input
                                     value={rule.name || ""}
                                     onChange={(e) => handleUpdateRuleField(idx, "name", e.target.value)}
                                     placeholder="e.g. pioneers-website"
-                                    className="h-8 text-xs bg-black/40 border-white/5 focus-visible:ring-1 focus-visible:ring-indigo-500/50 font-mono"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50 font-mono"
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                                     Folder Name Contains
                                   </label>
                                   <Input
                                     value={rule.name_contains || ""}
                                     onChange={(e) => handleUpdateRuleField(idx, "name_contains", e.target.value)}
                                     placeholder="e.g. frontend"
-                                    className="h-8 text-xs bg-black/40 border-white/5 focus-visible:ring-1 focus-visible:ring-indigo-500/50 font-mono"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50 font-mono"
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                                     File Marker Exists in Root
                                   </label>
                                   <Input
                                     value={rule.marker || ""}
                                     onChange={(e) => handleUpdateRuleField(idx, "marker", e.target.value)}
                                     placeholder="e.g. package.json, rocket.toml"
-                                    className="h-8 text-xs bg-black/40 border-white/5 focus-visible:ring-1 focus-visible:ring-indigo-500/50 font-mono"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50 font-mono"
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                                     Suffix Override Tag
                                   </label>
                                   <Input
                                     value={rule.suffix || ""}
                                     onChange={(e) => handleUpdateRuleField(idx, "suffix", e.target.value)}
                                     placeholder="e.g. ui, core, backend"
-                                    className="h-8 text-xs bg-black/40 border-white/5 focus-visible:ring-1 focus-visible:ring-indigo-500/50 font-mono"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50 font-mono"
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                                     Has Package Dependency
                                   </label>
                                   <Input
                                     value={rule.has_dep || ""}
                                     onChange={(e) => handleUpdateRuleField(idx, "has_dep", e.target.value)}
                                     placeholder="e.g. react, tensorflow, burn"
-                                    className="h-8 text-xs bg-black/40 border-white/5 focus-visible:ring-1 focus-visible:ring-indigo-500/50 font-mono"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50 font-mono"
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                                     Destination Category Folder
                                   </label>
-                                  <select
+                                  <Dropdown
+                                    className="w-full"
+                                    triggerClassName="h-8 px-2.5 text-xs font-semibold text-primary capitalize"
+                                    mono
                                     value={rule.category}
-                                    onChange={(e) => handleUpdateRuleField(idx, "category", e.target.value)}
-                                    className="w-full h-8 px-2.5 rounded-md text-xs font-semibold bg-black/40 border border-white/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500/50 text-indigo-300 capitalize font-mono"
-                                  >
-                                    {categories.map((c) => (
-                                      <option key={c} value={c} className="bg-zinc-950 text-indigo-400 capitalize">
-                                        {c}
-                                      </option>
-                                    ))}
-                                    <option value="undefined" className="bg-zinc-950 text-rose-400 italic">
-                                      undefined
-                                    </option>
-                                  </select>
+                                    onChange={(v) => handleUpdateRuleField(idx, "category", v)}
+                                    options={[
+                                      ...categories.map((c) => ({
+                                        value: c,
+                                        label: c,
+                                        className: "capitalize text-primary",
+                                      })),
+                                      {
+                                        value: "undefined",
+                                        label: "undefined",
+                                        className: "text-rose-400 italic",
+                                      },
+                                    ]}
+                                  />
                                 </div>
                               </div>
                             </div>
@@ -1871,7 +1884,7 @@ export function SettingsPanel({
                         <Button
                           onClick={handleAddBlankRule}
                           variant="ghost"
-                          className="text-xs text-indigo-400 hover:text-white hover:bg-white/5 border border-white/5 border-dashed rounded-lg"
+                          className="text-xs text-primary hover:text-foreground hover:bg-accent border border-border border-dashed rounded-lg"
                         >
                           <Plus className="size-3.5 mr-1" />
                           Add Custom Rule
@@ -1880,7 +1893,7 @@ export function SettingsPanel({
                         <Button
                           onClick={handleSaveBlueprintRules}
                           disabled={savingRules}
-                          className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold h-9 px-4 active:scale-95 transition-all"
+                          className="bg-primary hover:bg-primary/90 text-foreground text-xs font-semibold h-9 px-4 active:scale-95 transition-all"
                         >
                           {savingRules ? (
                             "Saving Rules..."
@@ -1896,7 +1909,7 @@ export function SettingsPanel({
                   ) : (
                     /* RAW TOML CODE MODE */
                     <div className="space-y-4 animate-in fade-in duration-150">
-                      <p className="text-xs text-zinc-400 leading-relaxed">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
                         Edit raw specifications directly. If you modify options below, clicking Save triggers internal Rust validation checks to guarantee syntax compliance.
                       </p>
 
@@ -1908,7 +1921,7 @@ export function SettingsPanel({
                             setRulesError(null);
                           }}
                           spellCheck={false}
-                          className="w-full h-[320px] bg-black/50 border border-white/5 p-4 rounded-xl font-mono text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 leading-relaxed scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent select-text"
+                          className="w-full h-[320px] bg-background/50 border border-border p-4 rounded-xl font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring/50 leading-relaxed scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent select-text"
                           placeholder="# Add your custom rules config here..."
                         />
                       </div>
@@ -1917,7 +1930,7 @@ export function SettingsPanel({
                         <Button
                           onClick={handleSaveBlueprintRules}
                           disabled={savingRules || !rulesRaw.trim()}
-                          className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold h-9 px-4 active:scale-95 transition-all"
+                          className="bg-primary hover:bg-primary/90 text-foreground text-xs font-semibold h-9 px-4 active:scale-95 transition-all"
                         >
                           {savingRules ? (
                             "Validating & Saving..."
@@ -1951,40 +1964,43 @@ export function SettingsPanel({
             </div>
           )}
 
+          {/* TAB: UPDATES */}
+          {activeTab === "updates" && <SettingsUpdater />}
+
           {/* TAB 4: ENGINE SPECS */}
           {activeTab === "engine" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               {/* About Engine Card */}
-              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
-                <CardHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-950/20">
-                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-slate-400 flex items-center gap-2.5">
-                    <Info className="size-4.5 text-slate-400" />
+              <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
+                <CardHeader className="p-6 pb-4 border-b border-border bg-card/20">
+                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-muted-foreground flex items-center gap-2.5">
+                    <Info className="size-4.5 text-muted-foreground" />
                     Engine Specifications
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-3.5 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">Core Service Identifier</span>
-                    <span className="font-semibold text-zinc-300 font-mono">Projm Organizer</span>
+                    <span className="text-muted-foreground">Core Service Identifier</span>
+                    <span className="font-semibold text-foreground font-mono">Projm Organizer</span>
                   </div>
-                  <Separator className="bg-white/5" />
+                  <Separator className="bg-accent" />
                   <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">Active Build Version</span>
-                    <span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                    <span className="text-muted-foreground">Active Build Version</span>
+                    <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                       0.7.1
                     </span>
                   </div>
-                  <Separator className="bg-white/5" />
+                  <Separator className="bg-accent" />
                   <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">Engine Description</span>
-                    <span className="text-right text-[11px] text-zinc-400 max-w-[220px] leading-relaxed">
+                    <span className="text-muted-foreground">Engine Description</span>
+                    <span className="text-right text-[11px] text-muted-foreground max-w-[220px] leading-relaxed">
                       Automated classification system and jump navigator for local developer workspaces
                     </span>
                   </div>
-                  <Separator className="bg-white/5" />
+                  <Separator className="bg-accent" />
                   <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">Global Configuration File</span>
-                    <code className="text-[10px] bg-zinc-900/60 text-zinc-300 px-2 py-0.5 rounded border border-white/5 font-mono truncate max-w-[200px]">
+                    <span className="text-muted-foreground">Global Configuration File</span>
+                    <code className="text-[10px] bg-muted/60 text-foreground px-2 py-0.5 rounded border border-border font-mono truncate max-w-[200px]">
                       ~/.config/projm/config.json
                     </code>
                   </div>
@@ -2004,37 +2020,37 @@ export function SettingsPanel({
 
       {/* Warning Deletion Modal (Slide up spring transitions) */}
       {categoryToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
-          <div className="w-full max-w-md p-6 bg-zinc-950 border border-white/10 rounded-2xl shadow-xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/75 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-w-md p-6 bg-card border border-border rounded-2xl shadow-xl space-y-4">
             <div className="flex items-start gap-3.5">
               <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl">
                 <ShieldAlert className="size-6 text-rose-400" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-zinc-200">
+                <h3 className="text-lg font-bold text-foreground">
                   Delete Folder Category?
                 </h3>
-                <p className="text-sm text-zinc-400 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Are you sure you want to remove the <code className="text-xs text-rose-300 bg-rose-500/10 px-1.5 py-0.5 rounded font-mono">"{categoryToDelete}"</code> category folder?
                 </p>
               </div>
             </div>
 
             <p className="text-xs text-rose-400/90 leading-relaxed bg-rose-500/5 p-3.5 rounded-lg border border-rose-500/10">
-              <strong>Important</strong>: Deactivating this folder means any active projects matching this category will be dynamically coerced and moved to the fallback <code className="text-xs bg-rose-500/20 font-bold px-1 rounded text-white">undefined</code> folder during the next reorganization scan.
+              <strong>Important</strong>: Deactivating this folder means any active projects matching this category will be dynamically coerced and moved to the fallback <code className="text-xs bg-rose-500/20 font-bold px-1 rounded text-foreground">undefined</code> folder during the next reorganization scan.
             </p>
 
             <div className="flex justify-end gap-2.5 pt-2">
               <Button
                 onClick={() => setCategoryToDelete(null)}
                 variant="ghost"
-                className="text-zinc-400 hover:text-white font-medium hover:bg-white/5 transition-all"
+                className="text-muted-foreground hover:text-foreground font-medium hover:bg-accent transition-all"
               >
                 Cancel
               </Button>
               <Button
                 onClick={confirmDeleteCategory}
-                className="bg-rose-600 hover:bg-rose-500 text-white font-semibold transition-all active:scale-95"
+                className="bg-rose-600 hover:bg-rose-500 text-foreground font-semibold transition-all active:scale-95"
               >
                 Deactivate Folder
               </Button>

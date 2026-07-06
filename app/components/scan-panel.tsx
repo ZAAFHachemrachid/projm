@@ -43,7 +43,7 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           onClick={onClose}
-          className="group inline-flex items-center justify-center p-1.5 mt-1 rounded-lg border border-white/5 bg-zinc-900/60 text-zinc-400 hover:text-white hover:border-white/10 hover:bg-white/5 transition-all duration-200"
+          className="group inline-flex items-center justify-center p-1.5 mt-1 rounded-lg border border-border bg-muted/60 text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent transition-all duration-200"
           title="Close scan"
         >
           <ArrowLeft className="size-5 transition-transform group-hover:-translate-x-0.5" />

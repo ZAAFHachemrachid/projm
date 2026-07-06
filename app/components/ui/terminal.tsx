@@ -237,13 +237,13 @@ export default function TerminalView({
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-[#0c0d0e] p-3">
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-background p-3">
       {searchOpen && (
-        <div className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-md border border-border bg-[#101113] p-1 shadow-xl">
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-md border border-border bg-card p-1 shadow-xl">
           <input
             ref={searchInputRef}
             placeholder="Search…"
-            className="w-40 bg-transparent px-1.5 py-0.5 font-mono text-xs text-slate-200 outline-none placeholder:text-slate-600"
+            className="w-40 bg-transparent px-1.5 py-0.5 font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground"
             onKeyDown={(e) => {
               if (e.key === "Enter") runSearch(e.shiftKey);
               if (e.key === "Escape") closeSearch();
@@ -251,7 +251,7 @@ export default function TerminalView({
           />
           <button
             onClick={closeSearch}
-            className="rounded px-1 text-xs text-slate-500 hover:bg-white/5 hover:text-white"
+            className="rounded px-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
             title="Close (Esc)"
           >
             ×

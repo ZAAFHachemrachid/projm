@@ -250,8 +250,8 @@ function FileTreeNode({
   const getFileIcon = () => {
     if (entry.is_dir) {
       return isExpanded 
-        ? <FolderOpen className="size-3.5 text-indigo-400 shrink-0" />
-        : <FolderOpen className="size-3.5 text-slate-400/80 shrink-0" />;
+        ? <FolderOpen className="size-3.5 text-primary shrink-0" />
+        : <FolderOpen className="size-3.5 text-muted-foreground shrink-0" />;
     }
 
     const name = entry.name.toLowerCase();
@@ -265,10 +265,10 @@ function FileTreeNode({
       return <span className="text-yellow-500 font-bold font-mono text-[10px] size-3.5 shrink-0 flex items-center justify-center">⚙️</span>;
     }
     if (name === ".gitignore" || name.startsWith(".git")) {
-      return <GitBranch className="size-3.5 text-[#64748b] shrink-0" />;
+      return <GitBranch className="size-3.5 text-muted-foreground shrink-0" />;
     }
     
-    return <span className="text-slate-400 font-bold font-mono text-[10px] size-3.5 shrink-0 flex items-center justify-center">📄</span>;
+    return <span className="text-muted-foreground font-bold font-mono text-[10px] size-3.5 shrink-0 flex items-center justify-center">📄</span>;
   };
 
   const getGitStyle = () => {
@@ -287,7 +287,7 @@ function FileTreeNode({
     if (status.includes("a")) {
       return { label: "A", colorClass: "text-[#10b981]" };
     }
-    return { label: entry.git_status, colorClass: "text-[#64748b]" };
+    return { label: entry.git_status, colorClass: "text-muted-foreground" };
   };
 
   const gitStyle = getGitStyle();
@@ -296,27 +296,27 @@ function FileTreeNode({
     <div className="flex flex-col w-full select-none">
       <button
         onClick={() => entry.is_dir && onToggleExpand(entry.path)}
-        className="w-full flex items-center justify-between py-1 px-2 rounded-md hover:bg-[#181a1c]/60 group text-left transition-colors relative"
+        className="w-full flex items-center justify-between py-1 px-2 rounded-md hover:bg-card/60 group text-left transition-colors relative"
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
         {/* Indenting Guide Lines */}
         {depth > 0 && Array.from({ length: depth }).map((_, i) => (
           <span 
             key={i} 
-            className="absolute top-0 bottom-0 border-l border-white/5" 
+            className="absolute top-0 bottom-0 border-l border-border" 
             style={{ left: `${i * 12 + 14}px` }} 
           />
         ))}
 
         <div className="flex items-center gap-2 truncate">
           {entry.is_dir && (
-            <ChevronRight className={`size-3 text-[#64748b] transition-transform duration-150 shrink-0 ${isExpanded ? "rotate-90" : ""}`} />
+            <ChevronRight className={`size-3 text-muted-foreground transition-transform duration-150 shrink-0 ${isExpanded ? "rotate-90" : ""}`} />
           )}
           {!entry.is_dir && <span className="w-3 shrink-0" />}
           
           {getFileIcon()}
           
-          <span className={`text-[11px] font-mono truncate ${gitStyle ? gitStyle.colorClass : "text-slate-300 group-hover:text-slate-100"}`}>
+          <span className={`text-[11px] font-mono truncate ${gitStyle ? gitStyle.colorClass : "text-foreground group-hover:text-foreground"}`}>
             {entry.name}
           </span>
         </div>
@@ -363,25 +363,25 @@ function CollapsiblePanel({
   children,
 }: CollapsiblePanelProps) {
   return (
-    <div className="flex flex-col w-full border-b border-white/[0.03]">
+    <div className="flex flex-col w-full border-b border-border">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between py-1.5 px-3 bg-[#0d0e10]/80 hover:bg-[#16181c]/90 transition-colors group text-left select-none outline-none focus:outline-none border-t border-white/[0.03]"
+        className="w-full flex items-center justify-between py-1.5 px-3 bg-background/80 hover:bg-card/90 transition-colors group text-left select-none outline-none focus:outline-none border-t border-border"
       >
         <div className="flex items-center gap-1.5">
           <ChevronRight 
-            className={`size-3 text-[#64748b] group-hover:text-slate-300 transition-transform duration-150 shrink-0 ${
+            className={`size-3 text-muted-foreground group-hover:text-foreground transition-transform duration-150 shrink-0 ${
               isExpanded ? "rotate-90" : ""
             }`} 
           />
-          <span className="text-[11px] font-bold tracking-wide text-[#94a3b8] group-hover:text-slate-200 font-sans">
+          <span className="text-[11px] font-bold tracking-wide text-muted-foreground group-hover:text-foreground font-sans">
             {title}
           </span>
         </div>
       </button>
       
       {isExpanded && (
-        <div className={`${paddingClass} flex flex-col gap-0.5 w-full bg-[#0f1012]`}>
+        <div className={`${paddingClass} flex flex-col gap-0.5 w-full bg-card`}>
           {children}
         </div>
       )}
@@ -714,10 +714,10 @@ export default function WorkspacePage() {
 
   return (
     <TooltipProvider>
-      <div className="relative w-full h-full flex bg-[#090a0b] text-[#e2e8f0] font-sans select-none">
+      <div className="relative w-full h-full flex bg-background text-foreground font-sans select-none">
         
         {/* ── SIDEBAR 1: Left Narrow Icon Column (48px) ── */}
-        <div className="w-12 h-full flex flex-col justify-between items-center py-4 bg-[#0d0e10] border-r border-[#1f2937]/30">
+        <div className="w-12 h-full flex flex-col justify-between items-center py-4 bg-background border-r border-border/30">
           <div className="flex flex-col gap-4 items-center w-full">
             
             {/* Top workspace logo/dashboard shortcut */}
@@ -725,13 +725,13 @@ export default function WorkspacePage() {
               <TooltipTrigger>
                 <button 
                   onClick={() => { setSelectedProject(null); setActiveTab("projects"); }}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#18191b] border border-border/20 text-indigo-400 hover:text-indigo-300 hover:bg-[#202124] transition-all"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-card border border-border/20 text-primary hover:text-primary hover:bg-muted transition-all"
                 >
                   <Sparkles className="size-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">
-                <span className="font-medium text-slate-200">Overview Dashboard</span>
+                <span className="font-medium text-foreground">Overview Dashboard</span>
               </TooltipContent>
             </Tooltip>
             
@@ -754,7 +754,7 @@ export default function WorkspacePage() {
                       className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all relative border ${
                         isSelected
                           ? `${meta.bg} ${meta.border} ${meta.color} shadow-md scale-105`
-                          : "bg-[#181a1c] border-transparent text-[#94a3b8] hover:text-white hover:bg-[#242629]"
+                          : "bg-card border-transparent text-muted-foreground hover:text-foreground hover:bg-muted"
                       }`}
                     >
                       {meta.letter}
@@ -766,8 +766,8 @@ export default function WorkspacePage() {
                   </TooltipTrigger>
                   <TooltipContent side="right">
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-slate-200">{meta.name}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{count} projects</span>
+                      <span className="font-semibold text-foreground">{meta.name}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{count} projects</span>
                     </div>
                   </TooltipContent>
                 </Tooltip>
@@ -781,13 +781,13 @@ export default function WorkspacePage() {
               <TooltipTrigger>
                 <button 
                   onClick={loadData}
-                  className="text-muted-foreground hover:text-white transition-colors" 
+                  className="text-muted-foreground hover:text-foreground transition-colors" 
                 >
                   <RefreshCw className="size-4 animate-hover" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">
-                <span className="font-medium text-slate-200">Reload Workspace</span>
+                <span className="font-medium text-foreground">Reload Workspace</span>
               </TooltipContent>
             </Tooltip>
 
@@ -796,42 +796,42 @@ export default function WorkspacePage() {
                 <button
                   type="button"
                   onClick={() => setOverlay({ kind: "settings" })}
-                  className="text-muted-foreground hover:text-white transition-colors animate-none"
+                  className="text-muted-foreground hover:text-foreground transition-colors animate-none"
                 >
                   <Settings className="size-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">
-                <span className="font-medium text-slate-200">Settings</span>
+                <span className="font-medium text-foreground">Settings</span>
               </TooltipContent>
             </Tooltip>
           </div>
         </div>
 
         {/* ── SIDEBAR 2: Directory Folder Tree Column (240px) ── */}
-        <div className="w-60 h-full flex flex-col justify-between bg-[#0f1012] border-r border-[#1f2937]/30">
+        <div className="w-60 h-full flex flex-col justify-between bg-card border-r border-border/30">
           
           {/* Sidebar Header */}
-          <div className="p-3 border-b border-[#1f2937]/20 flex flex-col gap-2">
+          <div className="p-3 border-b border-border/20 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold tracking-wider text-[#94a3b8] uppercase font-mono">
+              <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase font-mono">
                 {config?.base ? config.base.split("/").pop() : "Workspace"}
               </span>
-              <div className="flex items-center gap-1.5 text-[#64748b]">
-                <span title="New Folder"><FolderPlus className="size-3.5 hover:text-white cursor-pointer" /></span>
-                <span title="New File"><FilePlus className="size-3.5 hover:text-white cursor-pointer" /></span>
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <span title="New Folder"><FolderPlus className="size-3.5 hover:text-foreground cursor-pointer" /></span>
+                <span title="New File"><FilePlus className="size-3.5 hover:text-foreground cursor-pointer" /></span>
               </div>
             </div>
             
             {/* Quick Search */}
             <div className="relative flex items-center mt-1">
-              <Search className="absolute left-2 size-3 text-[#64748b]" />
+              <Search className="absolute left-2 size-3 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search projects..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 text-xs bg-[#17181c] border border-border/10 rounded-md focus:outline-none focus:border-border/30 focus:bg-[#1a1b20]"
+                className="w-full pl-7 pr-2 py-1 text-xs bg-card border border-border/10 rounded-md focus:outline-none focus:border-border/30 focus:bg-muted"
               />
             </div>
           </div>
@@ -867,7 +867,7 @@ export default function WorkspacePage() {
                 onToggle={() => setOutlineExpanded(!outlineExpanded)}
                 paddingClass="px-4 py-2"
               >
-                <div className="text-[10px] text-[#64748b] font-sans leading-relaxed">
+                <div className="text-[10px] text-muted-foreground font-sans leading-relaxed">
                   The active editor cannot provide outline information.
                 </div>
               </CollapsiblePanel>
@@ -878,7 +878,7 @@ export default function WorkspacePage() {
                 onToggle={() => setTimelineExpanded(!timelineExpanded)}
                 paddingClass="px-4 py-2"
               >
-                <div className="text-[10px] text-[#64748b] font-sans leading-relaxed">
+                <div className="text-[10px] text-muted-foreground font-sans leading-relaxed">
                   No timeline information available.
                 </div>
               </CollapsiblePanel>
@@ -889,7 +889,7 @@ export default function WorkspacePage() {
                 onToggle={() => setFileTreeProExpanded(!fileTreeProExpanded)}
                 paddingClass="px-4 py-2"
               >
-                <div className="text-[10px] text-[#64748b] font-sans leading-relaxed">
+                <div className="text-[10px] text-muted-foreground font-sans leading-relaxed">
                   Advanced project metrics fully synchronized.
                 </div>
               </CollapsiblePanel>
@@ -920,8 +920,8 @@ export default function WorkspacePage() {
                         }}
                         className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-[11px] font-mono group transition-all ${
                           isSelected
-                            ? "bg-[#18191c] text-[#e2e8f0]"
-                            : "text-[#94a3b8] hover:bg-[#181a1c]/60 hover:text-white"
+                            ? "bg-card text-foreground"
+                            : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate">
@@ -929,7 +929,7 @@ export default function WorkspacePage() {
                           <span className="truncate">{cat.name}</span>
                         </div>
                         {count > 0 && (
-                          <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${meta.color} bg-black/40 border border-white/5`}>
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${meta.color} bg-background/40 border border-border`}>
                             {count}
                           </span>
                         )}
@@ -952,7 +952,7 @@ export default function WorkspacePage() {
                     </div>
                   ) : filteredProjects.length === 0 ? (
                     <div className="text-center py-6 text-xs text-muted-foreground flex flex-col items-center gap-2">
-                      <FolderOpen className="size-6 text-[#475569] stroke-1" />
+                      <FolderOpen className="size-6 text-muted-foreground stroke-1" />
                       <span>No projects here</span>
                     </div>
                   ) : (
@@ -964,20 +964,20 @@ export default function WorkspacePage() {
                           onClick={() => openProject(p)}
                           className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-mono group transition-all ${
                             isSelected
-                              ? "bg-[#18191c] border-l-2 border-indigo-500 text-indigo-200"
-                              : "text-[#94a3b8] hover:bg-[#181a1c]/60 hover:text-white"
+                              ? "bg-card border-l-2 border-primary text-primary"
+                              : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
                           }`}
                         >
                           <div className="flex items-center gap-2 truncate">
-                            <FolderTree className={`size-3.5 shrink-0 ${isSelected ? "text-indigo-400" : "text-[#475569] group-hover:text-slate-400"}`} />
+                            <FolderTree className={`size-3.5 shrink-0 ${isSelected ? "text-primary" : "text-muted-foreground group-hover:text-muted-foreground"}`} />
                             <span className="truncate">{p.name}</span>
                           </div>
 
                           {/* Git branch & Dirty indicators */}
                           {p.git_branch && (
-                            <div className="flex items-center gap-1 shrink-0 bg-[#17181a] px-1 rounded-sm border border-border/10">
-                              <GitBranch className="size-2.5 text-[#64748b]" />
-                              <span className="text-[10px] text-[#64748b] font-sans truncate max-w-[50px]">
+                            <div className="flex items-center gap-1 shrink-0 bg-card px-1 rounded-sm border border-border/10">
+                              <GitBranch className="size-2.5 text-muted-foreground" />
+                              <span className="text-[10px] text-muted-foreground font-sans truncate max-w-[50px]">
                                 {p.git_branch}
                               </span>
                               <span
@@ -998,13 +998,13 @@ export default function WorkspacePage() {
           )}
 
           {/* Sidebar Switched Footer */}
-          <div className="p-2 bg-[#0c0d0f] border-t border-[#1f2937]/30 flex flex-col gap-1">
+          <div className="p-2 bg-background border-t border-border/30 flex flex-col gap-1">
             <button
               onClick={() => { setSelectedProject(null); setActiveTab("projects"); }}
               className={`w-full flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors ${
                 selectedProject === null && activeTab === "projects"
-                  ? "bg-[#18191b] text-indigo-300"
-                  : "text-muted-foreground hover:bg-[#151619] hover:text-white"
+                  ? "bg-card text-primary"
+                  : "text-muted-foreground hover:bg-card hover:text-foreground"
               }`}
             >
               <FolderTree className="size-3.5" />
@@ -1016,8 +1016,8 @@ export default function WorkspacePage() {
               disabled={runningDiagnostics}
               className={`w-full flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors ${
                 activeTab === "diagnostics"
-                  ? "bg-[#18191b] text-indigo-300"
-                  : "text-muted-foreground hover:bg-[#151619] hover:text-white"
+                  ? "bg-card text-primary"
+                  : "text-muted-foreground hover:bg-card hover:text-foreground"
               }`}
             >
               <HeartPulse className="size-3.5" />
@@ -1027,22 +1027,22 @@ export default function WorkspacePage() {
         </div>
 
         {/* ── MAIN WORKSPACE VIEWPORT (Remaining space) ── */}
-        <div className="flex-1 h-full flex flex-col bg-[#0b0c0e]">
+        <div className="flex-1 h-full flex flex-col bg-background">
           
           {/* Workspace Top Header Panel */}
-          <div className="h-10 border-b border-[#1f2937]/30 flex items-center justify-between px-4 bg-[#0d0e10]">
+          <div className="h-10 border-b border-border/30 flex items-center justify-between px-4 bg-background">
             
             {/* Left Arrow Controls and Open-Project Tabs */}
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => setSelectedProject(null)}
-                  className="p-1 rounded hover:bg-[#18191b] text-muted-foreground hover:text-white"
+                  className="p-1 rounded hover:bg-card text-muted-foreground hover:text-foreground"
                   title="Go Back"
                 >
                   <ChevronRight className="size-3.5 rotate-180" />
                 </button>
-                <button className="p-1 rounded hover:bg-[#18191b] text-muted-foreground hover:text-white disabled:opacity-30" disabled>
+                <button className="p-1 rounded hover:bg-card text-muted-foreground hover:text-foreground disabled:opacity-30" disabled>
                   <ChevronRight className="size-3.5" />
                 </button>
               </div>
@@ -1068,16 +1068,16 @@ export default function WorkspacePage() {
               <button 
                 onClick={handleScan}
                 disabled={scanning}
-                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs px-3 py-1.5 rounded transition-all active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-foreground font-medium text-xs px-3 py-1.5 rounded transition-all active:scale-95 disabled:opacity-50"
                 title="Scan base workspaces directory"
               >
-                <RefreshCw className={`size-3 text-indigo-100 ${scanning ? "animate-spin" : ""}`} />
+                <RefreshCw className={`size-3 text-primary ${scanning ? "animate-spin" : ""}`} />
                 <span>{scanning ? "Scanning..." : "Scan Workspace"}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setOverlay({ kind: "settings" })}
-                className="p-1.5 rounded hover:bg-[#18191b] text-[#64748b] hover:text-white transition-colors"
+                className="p-1.5 rounded hover:bg-card text-muted-foreground hover:text-foreground transition-colors"
                 title="Settings"
               >
                 <Settings2 className="size-3.5" />
@@ -1101,13 +1101,13 @@ export default function WorkspacePage() {
               {selectedProject && (
                 <div className="mb-2 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2">
-                    <TerminalIcon className="size-4 text-indigo-400" />
-                    <span className="text-sm font-semibold tracking-wide font-mono text-indigo-200">
+                    <TerminalIcon className="size-4 text-primary" />
+                    <span className="text-sm font-semibold tracking-wide font-mono text-primary">
                       {selectedProject.name} — Run &amp; Shell
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] bg-slate-900 border border-border/20 px-2 py-0.5 rounded font-mono text-emerald-400">
+                    <span className="text-[10px] bg-muted border border-border/20 px-2 py-0.5 rounded font-mono text-emerald-400">
                       DEV RUNNER
                     </span>
                   </div>
@@ -1140,16 +1140,16 @@ export default function WorkspacePage() {
             </div>
             {selectedProject ? null : activeTab === "diagnostics" ? (
               /* CASE 2: Environment Diagnostics Console View */
-              <div className="flex-1 flex flex-col overflow-hidden bg-[#0c0d0e] border border-border rounded-lg p-4 font-mono text-sm">
+              <div className="flex-1 flex flex-col overflow-hidden bg-background border border-border rounded-lg p-4 font-mono text-sm">
                 <div className="flex items-center justify-between border-b border-border/20 pb-2 mb-3">
-                  <div className="flex items-center gap-2 text-indigo-300">
+                  <div className="flex items-center gap-2 text-primary">
                     <HeartPulse className="size-4 text-pink-400" />
                     <span>Projm Environment Scan Logs</span>
                   </div>
                   <button
                     onClick={handleDiagnostics}
                     disabled={runningDiagnostics}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-sans text-xs px-3 py-1 rounded transition-colors disabled:opacity-50"
+                    className="bg-primary hover:bg-primary/90 text-foreground font-sans text-xs px-3 py-1 rounded transition-colors disabled:opacity-50"
                   >
                     {runningDiagnostics ? "Scanning..." : "Re-run Scan"}
                   </button>
@@ -1163,18 +1163,18 @@ export default function WorkspacePage() {
               <div className="flex-1 overflow-y-auto flex flex-col gap-4 max-w-5xl mx-auto w-full py-2 scrollbar-thin">
                 
                 {/* Header section with inline Base Location */}
-                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <div className="flex items-center justify-between border-b border-border pb-3">
                   <div className="flex flex-col gap-0.5">
-                    <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-[#64748b] bg-clip-text text-transparent">
+                    <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-transparent">
                       Workspace Dashboard
                     </h1>
-                    <p className="text-[10px] text-zinc-500">Overview of organized workspace directories and Git configurations.</p>
+                    <p className="text-[10px] text-muted-foreground">Overview of organized workspace directories and Git configurations.</p>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 text-[10px] bg-[#111215] border border-white/5 rounded px-2 py-1 font-mono text-slate-400">
-                    <span className="text-[#64748b]">Base path:</span>
-                    <span className="text-indigo-400 truncate max-w-[140px] sm:max-w-xs">{config?.base ?? "Not configured"}</span>
-                    <button type="button" onClick={() => setOverlay({ kind: "settings" })} className="text-indigo-300 hover:text-indigo-200 ml-1 font-sans transition-colors font-medium">
+                  <div className="flex items-center gap-1.5 text-[10px] bg-card border border-border rounded px-2 py-1 font-mono text-muted-foreground">
+                    <span className="text-muted-foreground">Base path:</span>
+                    <span className="text-primary truncate max-w-[140px] sm:max-w-xs">{config?.base ?? "Not configured"}</span>
+                    <button type="button" onClick={() => setOverlay({ kind: "settings" })} className="text-primary hover:text-primary ml-1 font-sans transition-colors font-medium">
                       Change →
                     </button>
                   </div>
@@ -1183,17 +1183,17 @@ export default function WorkspacePage() {
                 {/* Global Workspace Health Stats Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                   {/* Card 1: Total projects */}
-                  <div className="p-3 rounded-lg border border-white/5 bg-[#0f1012] flex items-center justify-between group hover:border-[#1f2937]/50 transition-all">
+                  <div className="p-3 rounded-lg border border-border bg-card flex items-center justify-between group hover:border-border/50 transition-all">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[9px] tracking-wider text-muted-foreground font-mono uppercase">
                         Total Projects
                       </span>
-                      <span className="text-lg font-bold text-slate-100 font-mono">
+                      <span className="text-lg font-bold text-foreground font-mono">
                         {projects.length}
                       </span>
-                      <span className="text-[9px] text-[#64748b]">Classified items</span>
+                      <span className="text-[9px] text-muted-foreground">Classified items</span>
                     </div>
-                    <div className="p-1.5 rounded bg-indigo-500/10 text-indigo-400">
+                    <div className="p-1.5 rounded bg-primary/10 text-primary">
                       <FolderTree className="size-4" />
                     </div>
                   </div>
@@ -1202,7 +1202,7 @@ export default function WorkspacePage() {
                   {(() => {
                     const activeCats = new Set(projects.map(p => p.category.toLowerCase())).size;
                     return (
-                      <div className="p-3 rounded-lg border border-white/5 bg-[#0f1012] flex items-center justify-between group hover:border-[#1f2937]/50 transition-all">
+                      <div className="p-3 rounded-lg border border-border bg-card flex items-center justify-between group hover:border-border/50 transition-all">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[9px] tracking-wider text-muted-foreground font-mono uppercase">
                             Active Folders
@@ -1210,7 +1210,7 @@ export default function WorkspacePage() {
                           <span className="text-lg font-bold text-emerald-400 font-mono">
                             {activeCats} <span className="text-xs text-muted-foreground font-normal">/ {categories.length}</span>
                           </span>
-                          <span className="text-[9px] text-[#64748b]">Populated folders</span>
+                          <span className="text-[9px] text-muted-foreground">Populated folders</span>
                         </div>
                         <div className="p-1.5 rounded bg-emerald-500/10 text-emerald-400">
                           <Layers className="size-4" />
@@ -1224,12 +1224,12 @@ export default function WorkspacePage() {
                     const lastProject = projects[0];
                     const meta = lastProject ? getCategoryMeta(lastProject.category, 0) : null;
                     return (
-                      <div className="p-3 rounded-lg border border-white/5 bg-[#0f1012] flex items-center justify-between group hover:border-[#1f2937]/50 transition-all">
+                      <div className="p-3 rounded-lg border border-border bg-card flex items-center justify-between group hover:border-border/50 transition-all">
                         <div className="flex flex-col gap-0.5 truncate w-full">
                           <span className="text-[9px] tracking-wider text-muted-foreground font-mono uppercase">
                             Last Scanned
                           </span>
-                          <span className="text-xs font-semibold text-indigo-300 font-mono truncate max-w-[130px]" title={lastProject?.name.toString() ?? "None"}>
+                          <span className="text-xs font-semibold text-primary font-mono truncate max-w-[130px]" title={lastProject?.name.toString() ?? "None"}>
                             {lastProject?.name ?? "None"}
                           </span>
                           {lastProject ? (
@@ -1237,10 +1237,10 @@ export default function WorkspacePage() {
                               {lastProject.category}
                             </span>
                           ) : (
-                            <span className="text-[9px] text-[#64748b]">No scans executed</span>
+                            <span className="text-[9px] text-muted-foreground">No scans executed</span>
                           )}
                         </div>
-                        <div className="p-1.5 rounded bg-indigo-500/10 text-indigo-400">
+                        <div className="p-1.5 rounded bg-primary/10 text-primary">
                           <Activity className="size-4" />
                         </div>
                       </div>
@@ -1251,17 +1251,17 @@ export default function WorkspacePage() {
                   {(() => {
                     const untrackedCount = projects.filter(p => !p.git_branch).length;
                     return (
-                      <div className="p-3 rounded-lg border border-white/5 bg-[#0f1012] flex items-center justify-between group hover:border-[#1f2937]/50 transition-all">
+                      <div className="p-3 rounded-lg border border-border bg-card flex items-center justify-between group hover:border-border/50 transition-all">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[9px] tracking-wider text-muted-foreground font-mono uppercase">
                             Untracked
                           </span>
-                          <span className={`text-lg font-bold font-mono ${untrackedCount > 0 ? "text-amber-400" : "text-slate-400"}`}>
+                          <span className={`text-lg font-bold font-mono ${untrackedCount > 0 ? "text-amber-400" : "text-muted-foreground"}`}>
                             {untrackedCount}
                           </span>
-                          <span className="text-[9px] text-[#64748b]">Missing Git tracking</span>
+                          <span className="text-[9px] text-muted-foreground">Missing Git tracking</span>
                         </div>
-                        <div className={`p-1.5 rounded bg-amber-500/10 text-amber-400 ${untrackedCount > 0 ? "" : "bg-zinc-800 text-slate-500"}`}>
+                        <div className={`p-1.5 rounded bg-amber-500/10 text-amber-400 ${untrackedCount > 0 ? "" : "bg-muted text-muted-foreground"}`}>
                           <GitBranch className="size-4" />
                         </div>
                       </div>
@@ -1271,7 +1271,7 @@ export default function WorkspacePage() {
 
                 {/* Categories Grid List */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-mono text-[#64748b] tracking-wider uppercase">
+                  <span className="text-[10px] font-mono text-muted-foreground tracking-wider uppercase">
                     Per-Category Project Breakdown
                   </span>
                   
@@ -1292,8 +1292,8 @@ export default function WorkspacePage() {
                           }}
                           className={`p-3 rounded-lg border text-left flex flex-col justify-between group relative overflow-hidden transition-all duration-300 min-h-[92px] ${
                             isPopulated
-                              ? `bg-[#0f1012] hover:bg-[#151619] border-white/5 hover:border-${meta.accentHex}/30 shadow-[0_4px_20px_rgba(0,0,0,0.4)]`
-                              : "bg-[#0c0d0e]/40 border-white/5 opacity-55 hover:opacity-80"
+                              ? `bg-card hover:bg-card border-border hover:border-${meta.accentHex}/30 shadow-[0_4px_20px_rgba(0,0,0,0.4)]`
+                              : "bg-background/40 border-border opacity-55 hover:opacity-80"
                           }`}
                           style={isPopulated ? {
                             boxShadow: `inset 0 1px 0 0 rgba(255,255,255,0.03), 0 4px 20px rgba(0,0,0,0.4)`
@@ -1301,26 +1301,26 @@ export default function WorkspacePage() {
                         >
                           <div className="flex items-start justify-between w-full">
                             <div className="flex items-center gap-2">
-                              <span className={`w-4 h-4 rounded flex items-center justify-center text-[9px] font-mono font-bold bg-black/40 border border-white/10 ${isPopulated ? meta.color : "text-slate-500"}`}>
+                              <span className={`w-4 h-4 rounded flex items-center justify-center text-[9px] font-mono font-bold bg-background/40 border border-border ${isPopulated ? meta.color : "text-muted-foreground"}`}>
                                 {meta.letter}
                               </span>
-                              <span className={`text-[11px] font-semibold capitalize tracking-wide ${isPopulated ? "text-slate-200 group-hover:text-white" : "text-slate-500"}`}>
+                              <span className={`text-[11px] font-semibold capitalize tracking-wide ${isPopulated ? "text-foreground group-hover:text-foreground" : "text-muted-foreground"}`}>
                                 {cat.name}
                               </span>
                             </div>
                             
-                            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${isPopulated ? `${meta.color} bg-black/40 border border-white/5` : "text-slate-600 bg-black/10"}`}>
+                            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${isPopulated ? `${meta.color} bg-background/40 border border-border` : "text-muted-foreground bg-background/10"}`}>
                               {count}
                             </span>
                           </div>
 
                           <div className="w-full mt-3 flex flex-col gap-1">
-                            <span className={`text-[9px] ${isPopulated ? "text-[#64748b] font-medium" : "text-slate-600"}`}>
+                            <span className={`text-[9px] ${isPopulated ? "text-muted-foreground font-medium" : "text-muted-foreground"}`}>
                               {isPopulated ? `${count} ${count === 1 ? "project" : "projects"}` : "empty folder"}
                             </span>
                             
                             {/* Proportional Fill Progress Bar */}
-                            <div className="w-full h-1 rounded-full bg-zinc-900 border border-white/5 overflow-hidden">
+                            <div className="w-full h-1 rounded-full bg-muted border border-border overflow-hidden">
                               {isPopulated && (
                                 <div 
                                   className={`h-full rounded-full transition-all duration-500 ${meta.progressColor}`}
@@ -1336,21 +1336,21 @@ export default function WorkspacePage() {
                 </div>
 
                 {/* Recent Workspace Activity / Projects Row */}
-                <div className="p-3 rounded-lg border border-white/5 bg-[#0f1012] flex flex-col gap-2">
+                <div className="p-3 rounded-lg border border-border bg-card flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <Activity className="size-3.5 text-indigo-400" />
-                      <span className="text-xs font-semibold tracking-wide text-slate-200">
+                      <Activity className="size-3.5 text-primary" />
+                      <span className="text-xs font-semibold tracking-wide text-foreground">
                         Recent Workspace Activity
                       </span>
                     </div>
-                    <span className="text-[9px] text-[#64748b] font-mono">
+                    <span className="text-[9px] text-muted-foreground font-mono">
                       Updated just now
                     </span>
                   </div>
                   
                   {projects.length === 0 ? (
-                    <div className="text-center py-4 text-xs text-[#64748b] italic">
+                    <div className="text-center py-4 text-xs text-muted-foreground italic">
                       No projects scanned yet. Click "Scan Workspace" in the top-bar to populate.
                     </div>
                   ) : (
@@ -1365,15 +1365,15 @@ export default function WorkspacePage() {
                               openProject(p);
                               setSelectedCategory(p.category);
                             }}
-                            className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 rounded border border-white/5 bg-black/20 hover:bg-[#181a1c]/60 transition-all text-left group gap-2"
+                            className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 rounded border border-border bg-background/20 hover:bg-card/60 transition-all text-left group gap-2"
                           >
                             <div className="flex items-center gap-2 truncate">
-                              <FolderTree className="size-3.5 text-slate-400 group-hover:text-indigo-400 shrink-0 transition-colors" />
+                              <FolderTree className="size-3.5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
                               <div className="flex flex-col gap-0.2 truncate">
-                                <span className="text-xs font-mono font-semibold text-slate-200 group-hover:text-white truncate">
+                                <span className="text-xs font-mono font-semibold text-foreground group-hover:text-foreground truncate">
                                   {p.name}
                                 </span>
-                                <span className="text-[9px] text-[#64748b] font-mono truncate max-w-[200px] sm:max-w-xs">
+                                <span className="text-[9px] text-muted-foreground font-mono truncate max-w-[200px] sm:max-w-xs">
                                   {p.path}
                                 </span>
                               </div>
@@ -1385,7 +1385,7 @@ export default function WorkspacePage() {
                                 {tags.map((tag) => (
                                   <span 
                                     key={tag} 
-                                    className="text-[8px] px-1 py-0.2 rounded bg-zinc-800/40 text-slate-400 border border-white/5 font-sans"
+                                    className="text-[8px] px-1 py-0.2 rounded bg-muted/40 text-muted-foreground border border-border font-sans"
                                   >
                                     {tag}
                                   </span>
@@ -1399,16 +1399,16 @@ export default function WorkspacePage() {
                               
                               {/* Branch status */}
                               {p.git_branch ? (
-                                <div className="flex items-center gap-1 bg-black/40 px-1.5 py-0.2 rounded border border-white/5 text-[9px] text-slate-400 font-mono">
-                                  <GitBranch className="size-2.5 text-[#64748b]" />
+                                <div className="flex items-center gap-1 bg-background/40 px-1.5 py-0.2 rounded border border-border text-[9px] text-muted-foreground font-mono">
+                                  <GitBranch className="size-2.5 text-muted-foreground" />
                                   <span className="truncate max-w-[70px]">{p.git_branch}</span>
                                   <span className={`w-1 h-1 rounded-full ${p.git_dirty ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
                                 </div>
                               ) : (
-                                <span className="text-[8px] text-[#64748b] font-mono">untracked</span>
+                                <span className="text-[8px] text-muted-foreground font-mono">untracked</span>
                               )}
                               
-                              <ChevronRight className="size-3 text-slate-500 group-hover:text-white group-hover:translate-x-0.5 transition-all hidden sm:block" />
+                              <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all hidden sm:block" />
                             </div>
                           </button>
                         );
@@ -1418,11 +1418,11 @@ export default function WorkspacePage() {
                 </div>
 
                 {/* Scan Tips / Helpful Banner */}
-                <div className="p-3 rounded-lg border border-white/5 bg-[#0f1012] flex gap-2.5 items-start">
-                  <Info className="size-4 text-indigo-400 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-lg border border-border bg-card flex gap-2.5 items-start">
+                  <Info className="size-4 text-primary shrink-0 mt-0.5" />
                   <div className="flex flex-col gap-1 text-[11px] w-full sm:flex-row sm:justify-between sm:items-center">
                     <div className="flex flex-col gap-0.2">
-                      <span className="font-semibold text-slate-200">How to populate the directories?</span>
+                      <span className="font-semibold text-foreground">How to populate the directories?</span>
                       <span className="text-muted-foreground leading-relaxed max-w-xl">
                         Enter the path to your source directories using the Scan page. The Projm background compiler automatically parses stacks, categorizes languages, and sets up Git tracking triggers.
                       </span>
@@ -1430,7 +1430,7 @@ export default function WorkspacePage() {
                     <button
                       type="button"
                       onClick={() => setOverlay({ kind: "scan" })}
-                      className="flex items-center gap-0.5 text-[10px] text-indigo-400 font-medium hover:text-indigo-300 shrink-0 mt-1 sm:mt-0 bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-500/20"
+                      className="flex items-center gap-0.5 text-[10px] text-primary font-medium hover:text-primary shrink-0 mt-1 sm:mt-0 bg-primary/10 px-2.5 py-1 rounded border border-primary/20"
                     >
                       <span>Scan settings</span>
                       <ChevronRight className="size-2.5" />
@@ -1446,7 +1446,7 @@ export default function WorkspacePage() {
             RunnerPanels stay mounted and shell sessions survive. Scoped to this
             (relative) container, so the titlebar stays visible above. ── */}
         {overlay?.kind === "settings" && (
-          <div className="absolute inset-0 z-40 bg-[#090a0b] overflow-hidden flex flex-col">
+          <div className="absolute inset-0 z-40 bg-background overflow-hidden flex flex-col">
             <SettingsPanel
               onClose={() => setOverlay(null)}
               initialTab={overlay.tab}
@@ -1454,7 +1454,7 @@ export default function WorkspacePage() {
           </div>
         )}
         {overlay?.kind === "scan" && (
-          <div className="absolute inset-0 z-40 bg-[#090a0b] overflow-y-auto">
+          <div className="absolute inset-0 z-40 bg-background overflow-y-auto">
             <div className="p-6 lg:p-8 max-w-3xl mx-auto">
               <ScanPanel onClose={() => setOverlay(null)} />
             </div>
@@ -1463,8 +1463,8 @@ export default function WorkspacePage() {
 
         {/* ── Quick Ctrl+K Modal Command Finder ── */}
         {searchOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-[#0f1012] border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm">
+            <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
               <div className="p-3 border-b border-border/20 flex items-center gap-2">
                 <Search className="size-4 text-muted-foreground" />
                 <input
@@ -1472,11 +1472,11 @@ export default function WorkspacePage() {
                   placeholder="Find a project by name..."
                   autoFocus
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-transparent focus:outline-none text-sm text-slate-100"
+                  className="w-full bg-transparent focus:outline-none text-sm text-foreground"
                 />
                 <button 
                   onClick={() => setSearchOpen(false)}
-                  className="text-[10px] bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded text-muted-foreground font-mono"
+                  className="text-[10px] bg-muted hover:bg-muted px-2 py-0.5 rounded text-muted-foreground font-mono"
                 >
                   ESC
                 </button>
@@ -1493,10 +1493,10 @@ export default function WorkspacePage() {
                         setSelectedCategory(p.category);
                         setSearchOpen(false);
                       }}
-                      className="w-full text-left p-2 rounded hover:bg-[#18191c] text-xs font-mono flex justify-between items-center text-slate-300 hover:text-white"
+                      className="w-full text-left p-2 rounded hover:bg-card text-xs font-mono flex justify-between items-center text-foreground hover:text-foreground"
                     >
                       <span>{p.name}</span>
-                      <span className="text-[10px] uppercase text-[#64748b] bg-slate-900 border border-border/10 px-1.5 py-0.5 rounded font-sans">
+                      <span className="text-[10px] uppercase text-muted-foreground bg-muted border border-border/10 px-1.5 py-0.5 rounded font-sans">
                         {p.category}
                       </span>
                     </button>

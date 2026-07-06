@@ -164,3 +164,41 @@ Projm keeps every opened project in an ordered tab strip in the top header; each
 
 ### Verification
 - Terminal settings (2026-07-06): Bash — `cargo test -p projm_core` 76 passed / 0 failed (incl. 4 new `shell::tests`); `cargo check -p projm-tauri` Finished clean; `bunx tsc --noEmit` exit 0, 0 errors. Command-name + arg-name parity confirmed frontend↔backend by grep + successful `generate_handler!` compile. DEFERRED-VERIFY (needs live `bun run tauri dev`): open Settings▸Terminal, set shell=fish → new project tab spawns fish (`echo $0`); set emulator=kitty → "Open in terminal" launches kitty at cwd.
+
+## Theme Switcher & Custom Themes (2026-07-06)
+
+**Problem:** The app's palette was hardcoded — `layout.tsx` forces `.dark` and `globals.css` defines a single slate-blue oklch token set. No way to switch themes, no built-in alternatives, no user customization.
+
+**Goal:** An **Appearance** tab in desktop Settings with a theme switcher (instant apply, persists across restarts), built-in themes (Projm Dark, Night Owl, Catppuccin Mocha, GitHub Dark), and a "bring your own" custom-theme editor. Zero backend/Rust changes — themes are semantic CSS-variable token maps applied inline to `<html>`.
+
+**Out of scope:** Re-theming the settings panel's hardcoded `zinc-*/indigo-*/white-*` utility classes (they stay dark-coherent since all shipped themes are dark); light themes (would clash with those hardcoded darks); syncing theme to the Tauri config file (localStorage is the right tool for an instant, FOUC-free UI preference).
+
+### Criteria
+- [x] ISC-1: `app/lib/themes.ts` defines `ThemeTokens` + a 26-key `THEME_TOKEN_KEYS` set covering background/foreground/card/popover/primary/secondary/muted/accent/destructive/border/input/ring + full sidebar family.
+- [x] ISC-2: Built-in registry ships Night Owl, Catppuccin Mocha, GitHub Dark full token maps + a "default" that applies empty tokens (exact globals.css look, zero drift).
+- [x] ISC-3: `applyTheme` sets present tokens as inline props and removes absent ones — switching never leaves stale overrides (verified: switch-to-default clears prior `--primary`).
+- [x] ISC-4: `resolveTokens(id, custom)` picks built-in map / custom map / empty correctly (unit-verified).
+- [x] ISC-5: `themeInitScript()` embeds theme data + runs in `<head>` before paint; verified present in static `out/settings.html`.
+- [x] ISC-6: FOUC script applies saved built-in AND saved custom theme from localStorage (unit-verified via `new Function`).
+- [x] ISC-7: `use-theme.ts` hook mirrors persisted state and applies live on switch / on custom edit when custom is active.
+- [x] ISC-8: `theme-switcher.tsx` renders a theme grid with live swatches + active state + a custom editor (8 color pickers, "start from" base seeding, reset).
+- [x] ISC-9: Settings has an **Appearance** tab (Palette icon) between General and Terminal, rendering `<ThemeSwitcher/>`.
+- [x] ISC-10: Anti: no regression — `tsc --noEmit` exit 0; `next build` ✓ compiled, 8/8 static pages.
+
+### Features
+- theme registry + setter + FOUC script | satisfies ISC-1..6 | depends_on none
+- useTheme hook | ISC-7 | depends_on themes.ts
+- ThemeSwitcher UI | ISC-8 | depends_on useTheme
+- layout head-script wiring | ISC-5 | depends_on themes.ts
+- Settings Appearance tab | ISC-9 | depends_on ThemeSwitcher
+
+### Verification
+- Theme system (2026-07-06): `tsc --noEmit` exit 0; `next build` ✓ compiled in 2.1s, 8/8 pages static. Static export grep confirms FOUC script + token data + palettes (`82aaff`, `2f81f7`, catppuccin) shipped in `out/`. Setter logic: 8/8 bun DOM-stub tests pass (resolve, apply/clear, stale-removal, init-script for built-in + custom). DEFERRED-VERIFY (no browser on this Linux box; Interceptor is macOS-only): live `bun run tauri dev` → Settings▸Appearance, click Night Owl → navy palette applies; build custom theme → persists after app restart with no flash.
+
+### Full-app tokenization (2026-07-06, follow-up)
+Made themes actually cascade app-wide by replacing hardcoded colors with semantic tokens:
+- Neutral sweep across 10 files: `zinc/white/black/slate-*` → `card/muted/background/foreground/muted-foreground/border/accent`; arbitrary hex chrome (`bg-[#0f1012]`, `text-[#64748b]`, `border-[#1f2937]`, terminal/runner/titlebar) → same token set with 3-level layering (background/card/muted) preserved.
+- `indigo-*` (77 uses, the de-facto primary accent) → `primary`/`ring` tokens; redefined default `--primary`/`--ring` in globals.css `:root`+`.dark` and `DEFAULT_SEED` from near-white to indigo `oklch(0.55 0.22 277)` so the current look is preserved while each theme's primary (Night Owl blue, Catppuccin mauve, GitHub blue) now flows through.
+- Left intentional per-section identity accents (cyan/emerald/fuchsia/amber) + category-legend dots + emerald status color fixed — brand identity, not theming bugs.
+- Verified: `tsc --noEmit` 0; `next build` ✓ 8/8 pages; new files eslint-clean; the 14 remaining lint errors are all pre-existing debt (String-wrapper types, explicit-any, unescaped-entities, setState-in-effect), none in the swept color changes.
+- Caveat: built-ins are all dark, so a user-built *light* custom theme is best-effort (some accent-on-accent contrast not fully tuned).

@@ -70,7 +70,7 @@ function newSessionId(): string {
 const DOT: Record<Status, string> = {
   running: "bg-emerald-400",
   starting: "bg-amber-400 animate-pulse",
-  stopped: "bg-slate-600",
+  stopped: "bg-muted",
   errored: "bg-red-500",
 };
 
@@ -109,16 +109,16 @@ function LogView({ lines }: { lines: string[] }) {
       <div
         ref={ref}
         onMouseUp={copySelection}
-        className="h-full w-full overflow-auto rounded-lg border border-border bg-[#0c0d0e] p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-200 selection:bg-emerald-500/30"
+        className="h-full w-full overflow-auto rounded-lg border border-border bg-background p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground selection:bg-emerald-500/30"
       >
       {lines.length === 0 ? (
-        <span className="text-slate-500">No output yet — press Start.</span>
+        <span className="text-muted-foreground">No output yet — press Start.</span>
       ) : (
         lines.map((l, i) => <div key={i}>{l === "" ? " " : l}</div>)
       )}
       </div>
       {copied && (
-        <span className="pointer-events-none absolute right-2 top-2 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[10px] font-medium text-white shadow">
+        <span className="pointer-events-none absolute right-2 top-2 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow">
           copied
         </span>
       )}
@@ -191,9 +191,9 @@ function AgentLauncher({
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-border bg-[#101113] p-1 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-border bg-card p-1 shadow-xl">
           {agents.length === 0 ? (
-            <div className="px-3 py-2 text-[11px] text-slate-500">
+            <div className="px-3 py-2 text-[11px] text-muted-foreground">
               No agents configured.
             </div>
           ) : (
@@ -202,7 +202,7 @@ function AgentLauncher({
                 key={agent.name}
                 disabled={!agent.installed || launching !== null}
                 onClick={() => launch(agent)}
-                className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs text-slate-200 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
                 title={
                   agent.installed
                     ? `Run \`${agent.command}\` in the project shell`
@@ -211,13 +211,13 @@ function AgentLauncher({
               >
                 <span
                   className={`inline-block size-1.5 rounded-full ${
-                    agent.installed ? "bg-emerald-400" : "bg-slate-600"
+                    agent.installed ? "bg-emerald-400" : "bg-muted"
                   }`}
                 />
                 <span className="flex-1 truncate font-medium">
                   {launching === agent.name ? "Launching…" : agent.name}
                 </span>
-                <span className="max-w-[100px] truncate font-mono text-[10px] text-slate-500">
+                <span className="max-w-[100px] truncate font-mono text-[10px] text-muted-foreground">
                   {agent.command}
                 </span>
               </button>
@@ -235,7 +235,7 @@ function AgentLauncher({
                 setOpen(false);
                 onOpenSettings?.("agents");
               }}
-              className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-[11px] text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+              className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Settings2 className="size-3" />
               Manage agents…
@@ -441,7 +441,7 @@ export default function RunnerPanel({
                   e.stopPropagation();
                   removeShellTab(t.id, true);
                 }}
-                className="ml-1 rounded p-0.5 text-slate-500 hover:bg-white/10 hover:text-white"
+                className="ml-1 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 <X className="size-2.5" />
               </span>
@@ -451,7 +451,7 @@ export default function RunnerPanel({
             type="button"
             onClick={addShellTab}
             title="New shell tab"
-            className="mx-0.5 rounded p-1 text-slate-500 transition-colors hover:bg-white/5 hover:text-white"
+            className="mx-0.5 rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <Plus className="size-3" />
           </button>
@@ -480,10 +480,10 @@ export default function RunnerPanel({
           ) : (
             <div className="mr-1 font-mono text-[11px]">
               {discovery === "loading" && (
-                <span className="text-slate-500">discovering apps…</span>
+                <span className="text-muted-foreground">discovering apps…</span>
               )}
               {discovery === "empty" && (
-                <span className="text-slate-500">no runnable apps detected here</span>
+                <span className="text-muted-foreground">no runnable apps detected here</span>
               )}
               {discovery === "error" && (
                 <span
@@ -535,9 +535,9 @@ export default function RunnerPanel({
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-mono text-xs">
                 <StatusDot status={statuses[a.id]} />
-                <span className="text-slate-200">{a.label}</span>
-                {a.port ? <span className="text-slate-500">:{a.port}</span> : null}
-                <span className="text-slate-600">· {a.command}</span>
+                <span className="text-foreground">{a.label}</span>
+                {a.port ? <span className="text-muted-foreground">:{a.port}</span> : null}
+                <span className="text-muted-foreground">· {a.command}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Button size="xs" onClick={() => call("cmd_runner_start", a.id)}>
