@@ -66,6 +66,28 @@ pub enum Commands {
     Run {
         /// Optional path or project name to run
         path_or_query: Option<String>,
+        /// List the discovered runnable apps and exit (works without a TTY)
+        #[arg(short = 'l', long)]
+        list: bool,
+        /// Force the multi-app tabbed-log TUI runner
+        #[arg(long)]
+        tui: bool,
+        /// Launch the TUI and start every discovered app immediately
+        #[arg(short = 'a', long)]
+        all: bool,
+        /// Verify that stopping a project reaps its whole process group, then exit
+        #[arg(long)]
+        selftest: bool,
+    },
+    /// Show git health for all organized projects (branch, dirty, ahead/behind)
+    #[command(alias = "st")]
+    Status {
+        /// Show only projects that are dirty or out of sync with upstream
+        #[arg(short, long)]
+        dirty: bool,
+        /// Emit machine-readable JSON instead of a table
+        #[arg(long)]
+        json: bool,
     },
     /// Clone a git repository directly and organize it
     Clone {

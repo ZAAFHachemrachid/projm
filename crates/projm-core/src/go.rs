@@ -142,7 +142,7 @@ pub fn run(query: Option<String>, last: bool) -> Result<()> {
                 .iter()
                 .map(|p| {
                     let cat_lbl = p.category.label();
-                    
+
                     let git_part = if let Some(git) = &p.git_info {
                         let status_indicator = if git.is_dirty {
                             "*".yellow().bold().to_string()
@@ -154,7 +154,13 @@ pub fn run(query: Option<String>, last: bool) -> Result<()> {
                         "".to_string()
                     };
 
-                    format!("  {}  {:<width$}  {}", cat_lbl, p.name, git_part, width = max_name_len)
+                    format!(
+                        "  {}  {:<width$}  {}",
+                        cat_lbl,
+                        p.name,
+                        git_part,
+                        width = max_name_len
+                    )
                 })
                 .collect();
 
@@ -200,7 +206,9 @@ fn get_git_info(path: &Path) -> Option<GitInfo> {
     if !branch_output.status.success() {
         return None;
     }
-    let branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+    let branch = String::from_utf8_lossy(&branch_output.stdout)
+        .trim()
+        .to_string();
     if branch.is_empty() {
         return None;
     }
@@ -266,7 +274,7 @@ fn pick_editor(project_path: &Path, term: &Term) -> Result<String> {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn is_group_folder(path: &Path) -> bool {
+pub(crate) fn is_group_folder(path: &Path) -> bool {
     let parent_name = match path.file_name() {
         Some(n) => n.to_string_lossy().to_lowercase(),
         None => return false,
@@ -290,7 +298,12 @@ fn detect_cd() -> &'static str {
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
-        .is_ok_and(|s| s.success()) { "z" } else { "cd" }
+        .is_ok_and(|s| s.success())
+    {
+        "z"
+    } else {
+        "cd"
+    }
 }
 
 fn shell_quote(s: &str) -> String {
@@ -388,4 +401,3 @@ mod tests {
         assert!(info.is_dirty);
     }
 }
-

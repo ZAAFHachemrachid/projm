@@ -71,11 +71,7 @@ impl Prefs {
         self.save_to(path)
     }
 
-    pub fn set_last_project_at(
-        &mut self,
-        path: &PathBuf,
-        project: &Path,
-    ) -> Result<()> {
+    pub fn set_last_project_at(&mut self, path: &PathBuf, project: &Path) -> Result<()> {
         self.last_project = Some(key(project));
         self.save_to(path)
     }
@@ -94,4 +90,3 @@ fn default_path() -> Result<PathBuf> {
         .context("cannot resolve XDG config dir")?
         .join("projm/prefs.json"))
 }
-

@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use colored::Colorize;
-use std::{fs, path::Path, path::PathBuf, process::Command};
-use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select, FuzzySelect};
 use clap::CommandFactory;
+use colored::Colorize;
+use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input, Select};
+use std::{fs, path::Path, path::PathBuf, process::Command};
 
 use crate::completions;
 use projm_core::{config, editors};
@@ -57,7 +57,11 @@ fn run_non_interactive(
     eprintln!("[3/3] updating shell profile...");
     let profile = profile_override.unwrap_or_else(|| default_profile_path(shell));
     update_shell_profile(shell, &profile, alias, &completion_file)?;
-    eprintln!("\n  {} updated {}", "done.".green().bold(), profile.display());
+    eprintln!(
+        "\n  {} updated {}",
+        "done.".green().bold(),
+        profile.display()
+    );
 
     Ok(())
 }
@@ -68,10 +72,24 @@ fn run_wizard(
     profile_override: Option<PathBuf>,
 ) -> Result<()> {
     println!();
-    println!("{}", "  ┌────────────────────────────────────────────────────────┐".cyan());
-    println!("{}", "  │  🚀 Welcome to projm                                   │".cyan().bold());
-    println!("{}", "  │  The developer-first project organizer & navigator.    │".cyan());
-    println!("{}", "  └────────────────────────────────────────────────────────┘".cyan());
+    println!(
+        "{}",
+        "  ┌────────────────────────────────────────────────────────┐".cyan()
+    );
+    println!(
+        "{}",
+        "  │  🚀 Welcome to projm                                   │"
+            .cyan()
+            .bold()
+    );
+    println!(
+        "{}",
+        "  │  The developer-first project organizer & navigator.    │".cyan()
+    );
+    println!(
+        "{}",
+        "  └────────────────────────────────────────────────────────┘".cyan()
+    );
     println!();
     println!("  Let's configure your development environment. This wizard will guide you through:");
     println!("    ⚙️  Setting your base directory");
@@ -101,9 +119,14 @@ fn run_wizard(
     let mut selected_editor = String::new();
 
     if installed.is_empty() {
-        println!("  {}", "No supported editors detected on your $PATH.".yellow());
+        println!(
+            "  {}",
+            "No supported editors detected on your $PATH.".yellow()
+        );
         let manual_entry: String = Input::with_theme(&theme)
-            .with_prompt("Please enter your editor command (e.g. nvim, code, helix) or press Enter to skip:")
+            .with_prompt(
+                "Please enter your editor command (e.g. nvim, code, helix) or press Enter to skip:",
+            )
             .default("".to_string())
             .interact_text()?;
         if !manual_entry.is_empty() {
@@ -112,14 +135,21 @@ fn run_wizard(
         }
     } else {
         println!("  Detected the following editors installed on your machine:");
-        let labels: Vec<String> = installed.iter().map(|e| format!("  {} ({})", e.name, e.binary)).collect();
+        let labels: Vec<String> = installed
+            .iter()
+            .map(|e| format!("  {} ({})", e.name, e.binary))
+            .collect();
         let chosen = Select::with_theme(&theme)
             .with_prompt("Choose your preferred editor")
             .items(&labels)
             .default(0)
             .interact()?;
         selected_editor = installed[chosen].binary.to_owned();
-        println!("  {} Preferred editor set to: {}", "✓".green(), selected_editor.bold());
+        println!(
+            "  {} Preferred editor set to: {}",
+            "✓".green(),
+            selected_editor.bold()
+        );
     }
     println!();
 
@@ -132,7 +162,10 @@ fn run_wizard(
         ("Nushell", completions::CompletionShell::Nushell),
     ];
     let shell_labels: Vec<String> = shells.iter().map(|(n, _)| n.to_string()).collect();
-    let default_shell_idx = shells.iter().position(|(_, s)| *s == detected_shell).unwrap_or(0);
+    let default_shell_idx = shells
+        .iter()
+        .position(|(_, s)| *s == detected_shell)
+        .unwrap_or(0);
 
     let chosen_shell_idx = Select::with_theme(&theme)
         .with_prompt("Which shell would you like to configure?")
@@ -141,7 +174,11 @@ fn run_wizard(
         .interact()?;
 
     let chosen_shell = shells[chosen_shell_idx].1;
-    println!("  {} Target shell set to: {}", "✓".green(), shells[chosen_shell_idx].0.bold());
+    println!(
+        "  {} Target shell set to: {}",
+        "✓".green(),
+        shells[chosen_shell_idx].0.bold()
+    );
     println!();
 
     // 4. Configure Alias
@@ -152,9 +189,14 @@ fn run_wizard(
     println!();
 
     // 5. Configure Profile Path
-    let default_profile = profile_override.clone().unwrap_or_else(|| default_profile_path(chosen_shell));
+    let default_profile = profile_override
+        .clone()
+        .unwrap_or_else(|| default_profile_path(chosen_shell));
     let use_default_profile = Confirm::with_theme(&theme)
-        .with_prompt(format!("Use default profile path: {}?", default_profile.display().to_string().cyan()))
+        .with_prompt(format!(
+            "Use default profile path: {}?",
+            default_profile.display().to_string().cyan()
+        ))
         .default(true)
         .interact()?;
 
@@ -199,11 +241,23 @@ fn run_wizard(
     println!();
 
     println!("{}", "[3/3] updating shell profile...".bold());
-    update_shell_profile(chosen_shell, &final_profile, &chosen_alias, &completion_file)?;
-    println!("      {} updated {}", "✓".green().bold(), final_profile.display());
+    update_shell_profile(
+        chosen_shell,
+        &final_profile,
+        &chosen_alias,
+        &completion_file,
+    )?;
+    println!(
+        "      {} updated {}",
+        "✓".green().bold(),
+        final_profile.display()
+    );
     println!();
 
-    println!("{}", "🎉 Configuration successfully complete!".green().bold());
+    println!(
+        "{}",
+        "🎉 Configuration successfully complete!".green().bold()
+    );
     println!();
 
     // 8. Interactive sandbox demo!
@@ -219,7 +273,10 @@ fn run_wizard(
     println!();
     println!("  To start using projm, restart your shell or run:");
     match chosen_shell {
-        completions::CompletionShell::Zsh | completions::CompletionShell::Bash | completions::CompletionShell::Fish | completions::CompletionShell::Nushell => {
+        completions::CompletionShell::Zsh
+        | completions::CompletionShell::Bash
+        | completions::CompletionShell::Fish
+        | completions::CompletionShell::Nushell => {
             println!("  {}", format!("source {}", final_profile.display()).cyan());
         }
         completions::CompletionShell::Powershell => {
@@ -254,30 +311,42 @@ fn run_sandbox_demo(preferred_editor: &str) -> Result<()> {
     fs::create_dir_all(&react_proj)?;
     fs::create_dir_all(&python_proj)?;
 
-    fs::write(rust_proj.join("Cargo.toml"), r#"[package]
+    fs::write(
+        rust_proj.join("Cargo.toml"),
+        r#"[package]
 name = "rust-telemetry-server"
 version = "0.1.0"
 [dependencies]
 tokio = "1"
-"#)?;
+"#,
+    )?;
 
-    fs::write(react_proj.join("package.json"), r#"{
+    fs::write(
+        react_proj.join("package.json"),
+        r#"{
   "name": "react-dashboard-ui",
   "dependencies": {
     "react": "^18.0.0",
     "vite": "^4.0.0"
   }
-}"#)?;
+}"#,
+    )?;
 
-    fs::write(python_proj.join("pyproject.toml"), r#"[project]
+    fs::write(
+        python_proj.join("pyproject.toml"),
+        r#"[project]
 name = "python-ml-model"
 dependencies = [
     "torch>=2.0"
 ]
-"#)?;
+"#,
+    )?;
 
     println!();
-    println!("  ⚡ {}", "Step 1: Automatic Classification & Organization".bold());
+    println!(
+        "  ⚡ {}",
+        "Step 1: Automatic Classification & Organization".bold()
+    );
     println!("  Scaffolded 3 unorganized mock projects in a temporary dump folder:");
     println!("    📁 rust-telemetry-server/ (contains Cargo.toml)");
     println!("    📁 react-dashboard-ui/    (contains package.json)");
@@ -298,9 +367,21 @@ dependencies = [
 
     // Display Fuzzy Picker loaded with mock projects
     let demo_projects = [
-        ("services", "rust-telemetry-server", demo_base.join("services/rust-telemetry-server")),
-        ("ui", "react-dashboard-ui", demo_base.join("ui/react-dashboard-ui")),
-        ("ml", "python-ml-model", demo_base.join("ml/python-ml-model")),
+        (
+            "services",
+            "rust-telemetry-server",
+            demo_base.join("services/rust-telemetry-server"),
+        ),
+        (
+            "ui",
+            "react-dashboard-ui",
+            demo_base.join("ui/react-dashboard-ui"),
+        ),
+        (
+            "ml",
+            "python-ml-model",
+            demo_base.join("ml/python-ml-model"),
+        ),
     ];
 
     let labels: Vec<String> = demo_projects
@@ -318,7 +399,11 @@ dependencies = [
 
     println!();
     println!("  🎉 {}", "Awesome choice!".green().bold());
-    println!("  You selected: {} {}", format!("[{}]", chosen_cat).cyan(), chosen_name.bold());
+    println!(
+        "  You selected: {} {}",
+        format!("[{}]", chosen_cat).cyan(),
+        chosen_name.bold()
+    );
     println!("  Path: {}", chosen_path.display().to_string().dimmed());
     println!();
     if !preferred_editor.is_empty() {
@@ -353,7 +438,9 @@ fn detect_shell() -> completions::CompletionShell {
         }
     }
 
-    if std::env::var("PSModulePath").is_ok() || std::env::var("POWERSHELL_DISTRIBUTION_CHANNEL").is_ok() {
+    if std::env::var("PSModulePath").is_ok()
+        || std::env::var("POWERSHELL_DISTRIBUTION_CHANNEL").is_ok()
+    {
         return completions::CompletionShell::Powershell;
     }
 
@@ -383,14 +470,15 @@ fn default_profile_path(shell: completions::CompletionShell) -> PathBuf {
                 home.join(".bashrc")
             }
         }
-        completions::CompletionShell::Fish => {
-            home.join(".config/fish/config.fish")
-        }
+        completions::CompletionShell::Fish => home.join(".config/fish/config.fish"),
         completions::CompletionShell::Powershell => {
-            if let Some(path) = query_shell_profile("pwsh", &["-NoProfile", "-Command", "$PROFILE"]) {
+            if let Some(path) = query_shell_profile("pwsh", &["-NoProfile", "-Command", "$PROFILE"])
+            {
                 return path;
             }
-            if let Some(path) = query_shell_profile("powershell", &["-NoProfile", "-Command", "$PROFILE"]) {
+            if let Some(path) =
+                query_shell_profile("powershell", &["-NoProfile", "-Command", "$PROFILE"])
+            {
                 return path;
             }
             if cfg!(target_os = "windows") {
@@ -415,10 +503,7 @@ fn default_profile_path(shell: completions::CompletionShell) -> PathBuf {
 }
 
 fn query_shell_profile(binary: &str, args: &[&str]) -> Option<PathBuf> {
-    let output = Command::new(binary)
-        .args(args)
-        .output()
-        .ok()?;
+    let output = Command::new(binary).args(args).output().ok()?;
     if output.status.success() {
         let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if !path_str.is_empty() {
@@ -434,7 +519,9 @@ fn completion_path(shell: completions::CompletionShell) -> PathBuf {
         completions::CompletionShell::Zsh => home.join(".config/zsh/completions/_projm"),
         completions::CompletionShell::Bash => home.join(".config/projm/completions/projm.bash"),
         completions::CompletionShell::Fish => home.join(".config/fish/completions/projm.fish"),
-        completions::CompletionShell::Powershell => home.join(".config/powershell/completions/projm.ps1"),
+        completions::CompletionShell::Powershell => {
+            home.join(".config/powershell/completions/projm.ps1")
+        }
         completions::CompletionShell::Nushell => home.join(".config/projm/completions/projm.nu"),
     }
 }
@@ -477,7 +564,11 @@ fn update_shell_profile(
     let old = fs::read_to_string(profile).unwrap_or_default();
     let updated = match shell {
         completions::CompletionShell::Zsh => {
-            let comp_dir = completion_path.parent().unwrap_or(completion_path).to_string_lossy().to_string();
+            let comp_dir = completion_path
+                .parent()
+                .unwrap_or(completion_path)
+                .to_string_lossy()
+                .to_string();
             let block = format!(
                 "{start}\n{alias}() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\npn() {{\n    projm run \"$@\"\n}}\nfpath=(\"{comp_dir}\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
                 alias = alias,
@@ -520,7 +611,10 @@ fn update_shell_profile(
                 end = PROJM_BLOCK_END
             );
             let with_projm = ensure_projm_block(&old, &block);
-            ensure_line(&with_projm, "Invoke-Expression (& { (zoxide init powershell | Out-String) })")
+            ensure_line(
+                &with_projm,
+                "Invoke-Expression (& { (zoxide init powershell | Out-String) })",
+            )
         }
         completions::CompletionShell::Nushell => {
             let comp_file = completion_path.to_string_lossy().to_string();
@@ -544,11 +638,15 @@ fn update_shell_profile(
 }
 
 fn ensure_projm_block(content: &str, block: &str) -> String {
-    if let (Some(start_idx), Some(end_idx)) = (content.find(PROJM_BLOCK_START), content.find(PROJM_BLOCK_END)) {
+    if let (Some(start_idx), Some(end_idx)) = (
+        content.find(PROJM_BLOCK_START),
+        content.find(PROJM_BLOCK_END),
+    ) {
         if start_idx < end_idx {
             let mut new_content = content[..start_idx].to_owned();
             new_content.push_str(block);
-            new_content.push_str(content[end_idx + PROJM_BLOCK_END.len()..].trim_start_matches('\n'));
+            new_content
+                .push_str(content[end_idx + PROJM_BLOCK_END.len()..].trim_start_matches('\n'));
             return new_content;
         }
     }
@@ -685,8 +783,12 @@ mod tests {
         let test_comp = PathBuf::from("test_comp");
         let old = "";
         let alias = "pj";
-        
-        let comp_dir = test_comp.parent().unwrap_or(&test_comp).to_string_lossy().to_string();
+
+        let comp_dir = test_comp
+            .parent()
+            .unwrap_or(&test_comp)
+            .to_string_lossy()
+            .to_string();
         let block_content = format!(
             "{start}\n{alias}() {{\n    local cmd\n    cmd=$(projm g \"$@\" 2>/dev/tty </dev/tty) || return\n    [ -n \"$cmd\" ] && eval \"$cmd\"\n}}\npn() {{\n    projm run \"$@\"\n}}\nfpath=(\"{comp_dir}\" $fpath)\nautoload -Uz compinit && compinit\n{end}\n",
             alias = alias,

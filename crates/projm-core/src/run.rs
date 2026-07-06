@@ -11,7 +11,6 @@ use serde::Deserialize;
 use crate::classify::Category;
 use crate::config;
 
-
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,7 +41,7 @@ enum ProjectStack {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MonorepoTool {
+pub(crate) enum MonorepoTool {
     Turbo,
     PnpmWorkspace,
     Nx,
@@ -86,7 +85,11 @@ pub fn run(path_or_query: Option<String>) -> Result<()> {
             return run_monorepo(&mono_root, &cfg);
         }
         // Inside a specific workspace package → run it directly
-        eprintln!("  {} using workspace package at {}", "→".dimmed(), project_path.display());
+        eprintln!(
+            "  {} using workspace package at {}",
+            "→".dimmed(),
+            project_path.display()
+        );
     }
 
     // Check for .projm.toml override in the project dir
@@ -127,13 +130,19 @@ fn resolve_project(arg: Option<&str>) -> Result<Project> {
             let path = if p == "." {
                 std::env::current_dir().context("Failed to get current directory")?
             } else {
-                PathBuf::from(p).canonicalize().unwrap_or_else(|_| PathBuf::from(p))
+                PathBuf::from(p)
+                    .canonicalize()
+                    .unwrap_or_else(|_| PathBuf::from(p))
             };
             let name = path
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "project".to_string());
-            Ok(Project { name, path, category: Category::Labs })
+            Ok(Project {
+                name,
+                path,
+                category: Category::Labs,
+            })
         }
 
         // No arg: try CWD, fall back to picker
@@ -161,8 +170,10 @@ fn resolve_project(arg: Option<&str>) -> Result<Project> {
 
             // Exact match (case-insensitive)
             let q_lower = query.to_lowercase();
-            let exact: Vec<&Project> =
-                scanned.iter().filter(|p| p.name.to_lowercase() == q_lower).collect();
+            let exact: Vec<&Project> = scanned
+                .iter()
+                .filter(|p| p.name.to_lowercase() == q_lower)
+                .collect();
 
             if exact.len() == 1 {
                 return Ok(exact[0].clone());
@@ -336,11 +347,7 @@ fn pick_workspace_target(tool: &MonorepoTool, packages: &[String]) -> Result<Opt
     };
 
     for pkg in packages {
-        items.push(format!(
-            "  {}  {}",
-            "◻".dimmed(),
-            pkg
-        ));
+        items.push(format!("  {}  {}", "◻".dimmed(), pkg));
     }
 
     let theme = ColorfulTheme::default();
@@ -460,7 +467,7 @@ fn has_ext(dir: &Path, ext: &str) -> bool {
 
 // ── Dev command resolution ─────────────────────────────────────────────────────
 
-fn resolve_dev_command(path: &Path) -> Result<String> {
+pub(crate) fn resolve_dev_command(path: &Path) -> Result<String> {
     let stack = detect_stack(path);
 
     match stack {
@@ -653,7 +660,7 @@ fn resolve_named_script(name: &str, path: &Path) -> String {
 
 // ── Monorepo support ───────────────────────────────────────────────────────────
 
-fn find_monorepo_root(path: &Path) -> Option<PathBuf> {
+pub(crate) fn find_monorepo_root(path: &Path) -> Option<PathBuf> {
     let mut current = Some(path.to_path_buf());
     while let Some(dir) = current {
         if detect_monorepo(&dir).is_some() {
@@ -664,7 +671,7 @@ fn find_monorepo_root(path: &Path) -> Option<PathBuf> {
     None
 }
 
-fn detect_monorepo(path: &Path) -> Option<MonorepoTool> {
+pub(crate) fn detect_monorepo(path: &Path) -> Option<MonorepoTool> {
     if path.join("turbo.json").exists() {
         return Some(MonorepoTool::Turbo);
     }
@@ -675,9 +682,7 @@ fn detect_monorepo(path: &Path) -> Option<MonorepoTool> {
         return Some(MonorepoTool::Nx);
     }
     // Bun workspace: bun.lock + package.json workspaces
-    if (path.join("bun.lock").exists() || path.join("bun.lockb").exists())
-        && has_workspaces(path)
-    {
+    if (path.join("bun.lock").exists() || path.join("bun.lockb").exists()) && has_workspaces(path) {
         return Some(MonorepoTool::BunWorkspace);
     }
     // pnpm/yarn workspace with workspaces field but no marker file
@@ -694,7 +699,7 @@ fn has_workspaces(path: &Path) -> bool {
     content.contains("\"workspaces\"")
 }
 
-fn resolve_workspace_packages(path: &Path, tool: &MonorepoTool) -> Vec<String> {
+pub(crate) fn resolve_workspace_packages(path: &Path, tool: &MonorepoTool) -> Vec<String> {
     match tool {
         MonorepoTool::PnpmWorkspace => resolve_pnpm_workspace_packages(path),
         MonorepoTool::BunWorkspace => resolve_bun_workspace_packages(path),
@@ -721,7 +726,10 @@ fn resolve_pnpm_workspace_packages(root: &Path) -> Vec<String> {
         }
         if in_packages {
             if trimmed.starts_with('-') {
-                let glob = trimmed.trim_start_matches('-').trim().trim_matches('\'')
+                let glob = trimmed
+                    .trim_start_matches('-')
+                    .trim()
+                    .trim_matches('\'')
                     .trim_matches('"')
                     .to_string();
                 if !glob.is_empty() {
@@ -794,7 +802,7 @@ fn resolve_bun_workspace_packages(root: &Path) -> Vec<String> {
 }
 
 /// Resolve a glob like "apps/*" or "packages/*" to actual subdirectory names
-fn resolve_glob(root: &Path, glob: &str, out: &mut Vec<String>) {
+pub(crate) fn resolve_glob(root: &Path, glob: &str, out: &mut Vec<String>) {
     // Simple glob: only handle "parent/*" and "parent/**" patterns
     if let Some(star_pos) = glob.find('*') {
         let prefix = &glob[..star_pos];
@@ -863,7 +871,11 @@ fn run_monorepo(root: &Path, cfg: &Option<RunConfig>) -> Result<()> {
 
     if package_names.is_empty() {
         // No packages - just run the dev command at root
-        eprintln!("  {} {} workspaces detected — running root dev command", "→".dimmed(), tool_name);
+        eprintln!(
+            "  {} {} workspaces detected — running root dev command",
+            "→".dimmed(),
+            tool_name
+        );
         let root_cmd = resolve_monorepo_root_command(root, &tool, None)?;
         return spawn_and_wait(&root_cmd, root);
     }
@@ -880,15 +892,12 @@ fn run_monorepo(root: &Path, cfg: &Option<RunConfig>) -> Result<()> {
         }
         Some(pkg) => {
             // Find the path for this package
-            let pkg_path = config_packages
-                .get(&pkg)
-                .map(|p| root.join(p))
-                .or_else(|| {
-                    // Try auto-detected: find first match
-                    let matches: Vec<&String> =
-                        auto_packages.iter().filter(|p| p.ends_with(&pkg)).collect();
-                    matches.first().map(|p| root.join(p))
-                });
+            let pkg_path = config_packages.get(&pkg).map(|p| root.join(p)).or_else(|| {
+                // Try auto-detected: find first match
+                let matches: Vec<&String> =
+                    auto_packages.iter().filter(|p| p.ends_with(&pkg)).collect();
+                matches.first().map(|p| root.join(p))
+            });
 
             let cmd = resolve_monorepo_root_command(root, &tool, Some(&pkg))?;
             match &pkg_path {
@@ -1220,8 +1229,11 @@ mod tests {
             d.path().join("package.json"),
             r#"{"scripts": {"dev": "vite", "build": "vite build"}}"#,
         )
-            .unwrap();
-        assert_eq!(find_package_script(d.path(), &["dev", "start"]).as_deref(), Some("dev"));
+        .unwrap();
+        assert_eq!(
+            find_package_script(d.path(), &["dev", "start"]).as_deref(),
+            Some("dev")
+        );
     }
 
     #[test]
@@ -1231,8 +1243,11 @@ mod tests {
             d.path().join("package.json"),
             r#"{"scripts": {"start": "node server.js"}}"#,
         )
-            .unwrap();
-        assert_eq!(find_package_script(d.path(), &["dev", "start"]).as_deref(), Some("start"));
+        .unwrap();
+        assert_eq!(
+            find_package_script(d.path(), &["dev", "start"]).as_deref(),
+            Some("start")
+        );
     }
 
     #[test]
@@ -1278,7 +1293,7 @@ mod tests {
             d.path().join("package.json"),
             r#"{"workspaces": ["apps/*", "packages/*"]}"#,
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(detect_monorepo(d.path()), Some(MonorepoTool::BunWorkspace));
     }
 
@@ -1290,12 +1305,16 @@ mod tests {
 
     #[test]
     fn resolve_pnpm_workspace_globs() {
-        let d = tmp_proj(&["pnpm-workspace.yaml", "apps/web/package.json", "apps/api/package.json"]);
+        let d = tmp_proj(&[
+            "pnpm-workspace.yaml",
+            "apps/web/package.json",
+            "apps/api/package.json",
+        ]);
         std::fs::write(
             d.path().join("pnpm-workspace.yaml"),
             "packages:\n  - 'apps/*'\n  - 'packages/*'\n",
         )
-            .unwrap();
+        .unwrap();
         let packages = resolve_pnpm_workspace_packages(d.path());
         assert!(packages.contains(&"apps/web".to_string()));
         assert!(packages.contains(&"apps/api".to_string()));
@@ -1303,12 +1322,16 @@ mod tests {
 
     #[test]
     fn resolve_bun_workspace_globs() {
-        let d = tmp_proj(&["package.json", "packages/shared/package.json", "packages/ui/package.json"]);
+        let d = tmp_proj(&[
+            "package.json",
+            "packages/shared/package.json",
+            "packages/ui/package.json",
+        ]);
         std::fs::write(
             d.path().join("package.json"),
             r#"{"workspaces": ["packages/*"]}"#,
         )
-            .unwrap();
+        .unwrap();
         let packages = resolve_bun_workspace_packages(d.path());
         assert!(packages.contains(&"packages/shared".to_string()));
         assert!(packages.contains(&"packages/ui".to_string()));
@@ -1321,12 +1344,9 @@ mod tests {
             d.path().join(".projm.toml"),
             "[run]\ncommand = \"cargo run --release\"\n",
         )
-            .unwrap();
+        .unwrap();
         let cfg = load_run_config(d.path()).unwrap();
-        assert_eq!(
-            cfg.run.unwrap().command.unwrap(),
-            "cargo run --release"
-        );
+        assert_eq!(cfg.run.unwrap().command.unwrap(), "cargo run --release");
     }
 
     #[test]
@@ -1336,7 +1356,7 @@ mod tests {
             d.path().join(".projm.toml"),
             "[run]\nscripts = [\"dev\", \"build\", \"test\"]\n",
         )
-            .unwrap();
+        .unwrap();
         let cfg = load_run_config(d.path()).unwrap();
         let scripts = cfg.run.unwrap().scripts.unwrap();
         assert_eq!(scripts, vec!["dev", "build", "test"]);
@@ -1349,7 +1369,7 @@ mod tests {
             d.path().join(".projm.toml"),
             "[run.workspace_packages]\napi = \"apps/api\"\nweb = \"apps/web\"\n",
         )
-            .unwrap();
+        .unwrap();
         let cfg = load_run_config(d.path()).unwrap();
         let wp = cfg.run.unwrap().workspace_packages.unwrap();
         assert_eq!(wp.get("api").unwrap(), "apps/api");

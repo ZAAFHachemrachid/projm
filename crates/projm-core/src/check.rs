@@ -219,28 +219,17 @@ pub fn parse_version(output: &str) -> Option<String> {
                 .to_string();
 
             if cleaned.starts_with('v')
-                && cleaned
-                    .chars()
-                    .nth(1)
-                    .is_some_and(|c| c.is_ascii_digit())
+                && cleaned.chars().nth(1).is_some_and(|c| c.is_ascii_digit())
             {
                 cleaned = cleaned[1..].to_string();
             } else if cleaned.starts_with("go")
-                && cleaned
-                    .chars()
-                    .nth(2)
-                    .is_some_and(|c| c.is_ascii_digit())
+                && cleaned.chars().nth(2).is_some_and(|c| c.is_ascii_digit())
             {
                 cleaned = cleaned[2..].to_string();
             }
 
             // A version string starts with a digit and contains at least one dot
-            if cleaned
-                .chars()
-                .next()
-                .is_some_and(|c| c.is_ascii_digit())
-                && cleaned.contains('.')
-            {
+            if cleaned.chars().next().is_some_and(|c| c.is_ascii_digit()) && cleaned.contains('.') {
                 let final_version = cleaned
                     .trim_matches(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
                     .to_string();
@@ -311,7 +300,10 @@ fn check_individual_tool(tool: &Tool) -> DiagnosticResult {
 
 pub fn run() -> Result<()> {
     println!();
-    println!("  {}", "Scanning system utilities & runtimes...".cyan().bold());
+    println!(
+        "  {}",
+        "Scanning system utilities & runtimes...".cyan().bold()
+    );
 
     // Spawn concurrent checks using std::thread
     let mut handles = Vec::new();
@@ -338,12 +330,15 @@ pub fn run() -> Result<()> {
     ];
 
     for cat in &categories {
-        println!("\n  {}", format!("── {} ──", cat.as_str().to_uppercase()).blue().bold());
-        
-        let cat_results: Vec<&DiagnosticResult> = results
-            .iter()
-            .filter(|r| r.category == *cat)
-            .collect();
+        println!(
+            "\n  {}",
+            format!("── {} ──", cat.as_str().to_uppercase())
+                .blue()
+                .bold()
+        );
+
+        let cat_results: Vec<&DiagnosticResult> =
+            results.iter().filter(|r| r.category == *cat).collect();
 
         for r in cat_results {
             if r.is_installed {

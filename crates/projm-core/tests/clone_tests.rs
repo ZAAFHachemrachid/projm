@@ -4,11 +4,26 @@ use tempfile::TempDir;
 
 #[test]
 fn test_url_name_extraction() {
-    assert_eq!(extract_repo_name("https://github.com/rust-lang/regex.git").unwrap(), "regex");
-    assert_eq!(extract_repo_name("https://github.com/rust-lang/regex").unwrap(), "regex");
-    assert_eq!(extract_repo_name("git@github.com:rust-lang/regex.git").unwrap(), "regex");
-    assert_eq!(extract_repo_name("https://github.com/rust-lang/regex.git?query=1#frag").unwrap(), "regex");
-    assert_eq!(extract_repo_name("file:///path/to/my-project.git").unwrap(), "my-project");
+    assert_eq!(
+        extract_repo_name("https://github.com/rust-lang/regex.git").unwrap(),
+        "regex"
+    );
+    assert_eq!(
+        extract_repo_name("https://github.com/rust-lang/regex").unwrap(),
+        "regex"
+    );
+    assert_eq!(
+        extract_repo_name("git@github.com:rust-lang/regex.git").unwrap(),
+        "regex"
+    );
+    assert_eq!(
+        extract_repo_name("https://github.com/rust-lang/regex.git?query=1#frag").unwrap(),
+        "regex"
+    );
+    assert_eq!(
+        extract_repo_name("file:///path/to/my-project.git").unwrap(),
+        "my-project"
+    );
     assert_eq!(extract_repo_name(""), None);
 }
 
@@ -93,6 +108,10 @@ fn test_clone_and_organize_integration() {
     // which maps to Services category.
     // So it should land in: base_dir/services/my-rust-service-api
     let expected_dest = base_dir.join("services").join("my-rust-service-api");
-    assert!(expected_dest.exists(), "Organized repository destination does not exist at {}", expected_dest.display());
+    assert!(
+        expected_dest.exists(),
+        "Organized repository destination does not exist at {}",
+        expected_dest.display()
+    );
     assert!(expected_dest.join("Cargo.toml").exists());
 }

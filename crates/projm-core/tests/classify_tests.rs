@@ -384,10 +384,10 @@ fn test_custom_category_coercion_and_serialization() {
     // 1. Serialization roundtrip
     let cat = Category::from("experiments");
     assert_eq!(cat.dir_name(), "experiments");
-    
+
     let serialized = serde_json::to_string(&cat).unwrap();
     assert_eq!(serialized, "\"experiments\"");
-    
+
     let deserialized: Category = serde_json::from_str(&serialized).unwrap();
     assert_eq!(deserialized.dir_name(), "experiments");
 

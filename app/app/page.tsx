@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useHotkey } from "@tanstack/react-hotkeys";
@@ -24,7 +25,8 @@ import {
   Layers,
   Activity
 } from "lucide-react";
-import TerminalView from "@/components/ui/terminal";
+import RunnerPanel from "@/components/ui/runner-panel";
+import ProjectTabs from "@/components/project-tabs";
 import {
   TooltipProvider,
   Tooltip,
@@ -407,6 +409,15 @@ export default function WorkspacePage() {
   // Active workspace states
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
   const [activeTab, setActiveTab] = useState<"projects" | "diagnostics">("projects");
+  // Ordered working set of opened projects (the tab strip), plus which of them
+  // have been activated at least once — only those mount a RunnerPanel, so
+  // restored-but-never-visited tabs don't spawn shells at startup.
+  const [openProjects, setOpenProjects] = useState<ProjectItem[]>([]);
+  const [activatedPaths, setActivatedPaths] = useState<Set<string>>(new Set());
+  // project path → app_id → runner status, fed by the global runner:status
+  // stream; drives the per-tab session dot.
+  const [runnerActivity, setRunnerActivity] = useState<Record<string, Record<string, string>>>({});
+  const tabsRestoredRef = useRef(false);
   const [diagnosticText, setDiagnosticText] = useState("");
   const [runningDiagnostics, setRunningDiagnostics] = useState(false);
 
@@ -456,11 +467,153 @@ export default function WorkspacePage() {
 
   const router = useRouter();
 
+  // Open a project as a tab (deduped by path) and make it the active one.
+  function openProject(p: ProjectItem) {
+    const path = p.path.toString();
+    setOpenProjects((prev) =>
+      prev.some((x) => x.path.toString() === path) ? prev : [...prev, p]
+    );
+    setActivatedPaths((prev) => {
+      if (prev.has(path)) return prev;
+      const next = new Set(prev);
+      next.add(path);
+      return next;
+    });
+    setSelectedProject(p);
+    setActiveTab("projects");
+  }
+
+  // Close a tab: tear down its shell + runner sessions, then activate a
+  // neighbor if the closed tab was the active one.
+  function closeProject(path: string) {
+    invoke("cmd_kill_terminal", { cwd: path }).catch(() => {});
+    invoke("cmd_runner_stop_all", { projectPath: path }).catch(() => {});
+    const idx = openProjects.findIndex((p) => p.path.toString() === path);
+    const next = openProjects.filter((p) => p.path.toString() !== path);
+    setOpenProjects(next);
+    setActivatedPaths((prev) => {
+      const s = new Set(prev);
+      s.delete(path);
+      return s;
+    });
+    setRunnerActivity((prev) => {
+      if (!(path in prev)) return prev;
+      const n = { ...prev };
+      delete n[path];
+      return n;
+    });
+    if (selectedProject?.path.toString() === path) {
+      setSelectedProject(
+        next.length > 0 ? next[Math.min(Math.max(idx, 0), next.length - 1)] : null
+      );
+    }
+  }
+
+  // Cycle the active tab forward/backward (Ctrl+Tab / Ctrl+Shift+Tab).
+  function cycleTab(dir: 1 | -1) {
+    if (openProjects.length === 0) return;
+    const idx = openProjects.findIndex(
+      (p) => p.path.toString() === selectedProject?.path.toString()
+    );
+    const nextIdx =
+      idx === -1
+        ? dir === 1
+          ? 0
+          : openProjects.length - 1
+        : (idx + dir + openProjects.length) % openProjects.length;
+    openProject(openProjects[nextIdx]);
+  }
+
   // Bind professional cross-platform hotkeys using TanStack React Hotkeys
   useHotkey("Mod+K", (e) => {
     e.preventDefault();
     setSearchOpen((prev) => !prev);
   });
+
+  useHotkey("Control+Tab" as any, (e: KeyboardEvent) => {
+    e.preventDefault();
+    cycleTab(1);
+  });
+
+  useHotkey("Control+Shift+Tab" as any, (e: KeyboardEvent) => {
+    e.preventDefault();
+    cycleTab(-1);
+  });
+
+  // Fallback bindings — some webviews swallow Ctrl+Tab before it reaches JS.
+  useHotkey("Control+PageDown" as any, (e: KeyboardEvent) => {
+    e.preventDefault();
+    cycleTab(1);
+  });
+
+  useHotkey("Control+PageUp" as any, (e: KeyboardEvent) => {
+    e.preventDefault();
+    cycleTab(-1);
+  });
+
+  useHotkey("Mod+W" as any, (e: KeyboardEvent) => {
+    e.preventDefault();
+    if (selectedProject) closeProject(selectedProject.path.toString());
+  });
+
+  // Global runner activity stream → per-tab session dots. Panels stay mounted
+  // per open project, so status events flow for every tab, not just the
+  // visible one.
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+    listen<{ project: string; app_id: string; status: string }>(
+      "runner:status",
+      (e) => {
+        const { project, app_id, status } = e.payload;
+        setRunnerActivity((prev) => ({
+          ...prev,
+          [project]: { ...prev[project], [app_id]: status },
+        }));
+      }
+    ).then((f) => (disposed ? f() : (unlisten = f)));
+    return () => {
+      disposed = true;
+      if (unlisten) unlisten();
+    };
+  }, []);
+
+  // Restore the open-tab set from localStorage once projects are loaded.
+  useEffect(() => {
+    if (tabsRestoredRef.current || loading || projects.length === 0) return;
+    tabsRestoredRef.current = true;
+    try {
+      const raw = localStorage.getItem("projm.openTabs");
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { paths?: string[]; active?: string | null };
+      if (!saved.paths?.length) return;
+      const found = saved.paths
+        .map((path) => projects.find((p) => p.path.toString() === path))
+        .filter(Boolean) as ProjectItem[];
+      if (found.length === 0) return;
+      setOpenProjects(found);
+      const active = found.find((p) => p.path.toString() === saved.active);
+      if (active) openProject(active);
+    } catch {
+      // Corrupt saved state is not worth surfacing — start with no tabs.
+    }
+  }, [loading, projects]);
+
+  // Persist the open-tab set (paths only — sessions don't survive restarts).
+  useEffect(() => {
+    if (!tabsRestoredRef.current) return;
+    try {
+      localStorage.setItem(
+        "projm.openTabs",
+        JSON.stringify({
+          paths: openProjects.map((p) => p.path.toString()),
+          active: selectedProject?.path.toString() ?? null,
+        })
+      );
+    } catch {
+      // Quota/privacy-mode failures only cost tab restore on next launch.
+    }
+  }, [openProjects, selectedProject]);
 
   useHotkey("Escape", () => {
     setSearchOpen(false);
@@ -802,10 +955,7 @@ export default function WorkspacePage() {
                       return (
                         <button
                           key={p.path.toString()}
-                          onClick={() => {
-                            setSelectedProject(p);
-                            setActiveTab("projects");
-                          }}
+                          onClick={() => openProject(p)}
                           className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-mono group transition-all ${
                             isSelected
                               ? "bg-[#18191c] border-l-2 border-indigo-500 text-indigo-200"
@@ -876,10 +1026,10 @@ export default function WorkspacePage() {
           {/* Workspace Top Header Panel */}
           <div className="h-10 border-b border-[#1f2937]/30 flex items-center justify-between px-4 bg-[#0d0e10]">
             
-            {/* Left Arrow Controls and Breadcrumbs */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <button 
+            {/* Left Arrow Controls and Open-Project Tabs */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex items-center gap-1 shrink-0">
+                <button
                   onClick={() => setSelectedProject(null)}
                   className="p-1 rounded hover:bg-[#18191b] text-muted-foreground hover:text-white"
                   title="Go Back"
@@ -890,13 +1040,21 @@ export default function WorkspacePage() {
                   <ChevronRight className="size-3.5" />
                 </button>
               </div>
-              <span className="text-xs text-muted-foreground font-mono">
-                {selectedProject
-                  ? `~/projects/${selectedProject.category}/${selectedProject.name}`
-                  : activeTab === "diagnostics"
-                  ? "Environment Diagnostics"
-                  : "Overview Dashboard"}
-              </span>
+              {openProjects.length > 0 ? (
+                <ProjectTabs
+                  projects={openProjects}
+                  activePath={selectedProject?.path.toString() ?? null}
+                  activity={runnerActivity}
+                  onSelect={(p) => openProject(p as ProjectItem)}
+                  onClose={closeProject}
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground font-mono">
+                  {activeTab === "diagnostics"
+                    ? "Environment Diagnostics"
+                    : "Overview Dashboard"}
+                </span>
+              )}
             </div>
 
             {/* Right Header Operations */}
@@ -923,28 +1081,54 @@ export default function WorkspacePage() {
           {/* ── Workspace Body Content ── */}
           <div className="flex-1 p-4 overflow-hidden flex flex-col">
             
-            {selectedProject ? (
-              /* CASE 1: Active Interactive Live Pseudo-Terminal */
-              <div className="flex-1 flex flex-col overflow-hidden">
+            {/* CASE 1: Per-tab Run & Shell panels. Every activated open project
+                keeps its RunnerPanel mounted (hidden when inactive) so shells,
+                logs, and runner sessions survive tab switches. */}
+            <div
+              className={
+                selectedProject
+                  ? "flex-1 flex flex-col overflow-hidden min-h-0"
+                  : "hidden"
+              }
+            >
+              {selectedProject && (
                 <div className="mb-2 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2">
                     <TerminalIcon className="size-4 text-indigo-400" />
                     <span className="text-sm font-semibold tracking-wide font-mono text-indigo-200">
-                      {selectedProject.name} — Interactive Shell
+                      {selectedProject.name} — Run &amp; Shell
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] bg-slate-900 border border-border/20 px-2 py-0.5 rounded font-mono text-emerald-400">
-                      ACTIVE TERMINAL
+                      DEV RUNNER
                     </span>
                   </div>
                 </div>
-                <div className="flex-1 overflow-hidden relative">
-                  {/* Dynamically re-renders TerminalView only when project changes to spawn fresh shell */}
-                  <TerminalView key={selectedProject.path.toString()} cwd={selectedProject.path.toString()} />
-                </div>
-              </div>
-            ) : activeTab === "diagnostics" ? (
+              )}
+              {openProjects
+                .filter((p) => activatedPaths.has(p.path.toString()))
+                .map((p) => {
+                  const path = p.path.toString();
+                  const isActivePanel =
+                    selectedProject?.path.toString() === path;
+                  return (
+                    <div
+                      key={path}
+                      className={
+                        isActivePanel
+                          ? "flex-1 flex flex-col min-h-0"
+                          : "hidden"
+                      }
+                    >
+                      <RunnerPanel
+                        project={{ name: p.name.toString(), path }}
+                      />
+                    </div>
+                  );
+                })}
+            </div>
+            {selectedProject ? null : activeTab === "diagnostics" ? (
               /* CASE 2: Environment Diagnostics Console View */
               <div className="flex-1 flex flex-col overflow-hidden bg-[#0c0d0e] border border-border rounded-lg p-4 font-mono text-sm">
                 <div className="flex items-center justify-between border-b border-border/20 pb-2 mb-3">
@@ -1168,9 +1352,8 @@ export default function WorkspacePage() {
                           <button
                             key={p.path.toString()}
                             onClick={() => {
-                              setSelectedProject(p);
+                              openProject(p);
                               setSelectedCategory(p.category);
-                              setActiveTab("projects");
                             }}
                             className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 rounded border border-white/5 bg-black/20 hover:bg-[#181a1c]/60 transition-all text-left group gap-2"
                           >
@@ -1276,9 +1459,8 @@ export default function WorkspacePage() {
                     <button
                       key={p.path.toString()}
                       onClick={() => {
-                        setSelectedProject(p);
+                        openProject(p);
                         setSelectedCategory(p.category);
-                        setActiveTab("projects");
                         setSearchOpen(false);
                       }}
                       className="w-full text-left p-2 rounded hover:bg-[#18191c] text-xs font-mono flex justify-between items-center text-slate-300 hover:text-white"

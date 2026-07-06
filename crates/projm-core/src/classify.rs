@@ -60,14 +60,14 @@ impl From<&str> for Category {
 impl Category {
     pub fn dir_name(&self) -> &str {
         match self {
-            Self::Apps     => "apps",
+            Self::Apps => "apps",
             Self::Services => "services",
-            Self::Ui       => "ui",
+            Self::Ui => "ui",
             Self::Embedded => "embedded",
-            Self::Ml       => "ml",
-            Self::Tools    => "tools",
-            Self::Labs     => "labs",
-            Self::Content  => "content",
+            Self::Ml => "ml",
+            Self::Tools => "tools",
+            Self::Labs => "labs",
+            Self::Content => "content",
             Self::Custom(s) => s,
         }
     }
@@ -76,14 +76,14 @@ impl Category {
     pub fn label(&self) -> String {
         let s = format!("{:<8}", self.dir_name());
         match self {
-            Self::Apps     => s.blue().bold().to_string(),
+            Self::Apps => s.blue().bold().to_string(),
             Self::Services => s.cyan().bold().to_string(),
-            Self::Ui       => s.magenta().bold().to_string(),
+            Self::Ui => s.magenta().bold().to_string(),
             Self::Embedded => s.yellow().bold().to_string(),
-            Self::Ml       => s.green().bold().to_string(),
-            Self::Tools    => s.white().bold().to_string(),
-            Self::Labs     => s.truecolor(255, 100, 50).bold().to_string(),
-            Self::Content  => s.truecolor(255, 105, 180).bold().to_string(),
+            Self::Ml => s.green().bold().to_string(),
+            Self::Tools => s.white().bold().to_string(),
+            Self::Labs => s.truecolor(255, 100, 50).bold().to_string(),
+            Self::Content => s.truecolor(255, 105, 180).bold().to_string(),
             Self::Custom(_) => s.truecolor(150, 150, 150).bold().to_string(),
         }
     }
@@ -91,16 +91,18 @@ impl Category {
     pub fn all() -> Vec<Self> {
         let cfg = crate::config::load();
         cfg.categories
-            .unwrap_or_else(|| vec![
-                "apps".to_string(),
-                "services".to_string(),
-                "ui".to_string(),
-                "embedded".to_string(),
-                "ml".to_string(),
-                "tools".to_string(),
-                "labs".to_string(),
-                "content".to_string(),
-            ])
+            .unwrap_or_else(|| {
+                vec![
+                    "apps".to_string(),
+                    "services".to_string(),
+                    "ui".to_string(),
+                    "embedded".to_string(),
+                    "ml".to_string(),
+                    "tools".to_string(),
+                    "labs".to_string(),
+                    "content".to_string(),
+                ]
+            })
             .into_iter()
             .map(|s| s.into())
             .collect()
@@ -120,12 +122,33 @@ impl Category {
 // Recognised separators: `-` or `_`
 
 pub const KNOWN_SUFFIXES: &[&str] = &[
-    "api", "web", "mob", "mobile", "desk", "desktop",
-    "mono", "cli", "fw", "lib", "core", "ui", "website",
+    "api",
+    "web",
+    "mob",
+    "mobile",
+    "desk",
+    "desktop",
+    "mono",
+    "cli",
+    "fw",
+    "lib",
+    "core",
+    "ui",
+    "website",
     // common real-world names people actually use
-    "backend", "frontend", "server", "client",
-    "app", "apps", "bot", "worker", "jobs",
-    "admin", "dashboard", "landing", "docs",
+    "backend",
+    "frontend",
+    "server",
+    "client",
+    "app",
+    "apps",
+    "bot",
+    "worker",
+    "jobs",
+    "admin",
+    "dashboard",
+    "landing",
+    "docs",
 ];
 
 /// Split `DriveTrack-Backend` -> `Some(("DriveTrack", "backend"))`.
@@ -174,35 +197,31 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
         return Category::Apps;
     }
 
-    let has_cargo   = has("Cargo.toml");
-    let has_pkg     = has("package.json");
-    let has_tauri   = has("src-tauri");
+    let has_cargo = has("Cargo.toml");
+    let has_pkg = has("package.json");
+    let has_tauri = has("src-tauri");
     // uv: uv.lock or .python-version are definitive uv markers
-    let has_uv      = has("uv.lock") || has(".python-version");
-    let has_py      = has_uv || has("requirements.txt") || has("pyproject.toml") || has("setup.py");
-    let has_nb      = has_ext(path, "ipynb");
-    let has_mem_x   = has("memory.x");           // embedded linker script
+    let has_uv = has("uv.lock") || has(".python-version");
+    let has_py = has_uv || has("requirements.txt") || has("pyproject.toml") || has("setup.py");
+    let has_nb = has_ext(path, "ipynb");
+    let has_mem_x = has("memory.x"); // embedded linker script
     let has_openocd = has("openocd.cfg") || has(".probe-rs");
 
     // ── Suffix gives a strong hint for mixed stacks ──────────────────────────
     // Bind to a variable so the temporary String lives long enough for split_suffix
-    let name_lower = path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_lowercase());
+    let name_lower = path.file_name().map(|n| n.to_string_lossy().to_lowercase());
     if let Some((_prefix, suffix)) = name_lower.as_deref().and_then(split_suffix) {
         // suffix is already lowercase because name_lower is lowercased
         match suffix {
-            "fw"                        => return Category::Embedded,
-            "mob" | "mobile"            => return Category::Ui,
-            "web" | "ui"                => return Category::Ui,
-            "api" | "core" | "backend"
-            | "server"                  => {
+            "fw" => return Category::Embedded,
+            "mob" | "mobile" => return Category::Ui,
+            "web" | "ui" => return Category::Ui,
+            "api" | "core" | "backend" | "server" => {
                 if !(has_tauri || (has_cargo && has_pkg)) {
                     return Category::Services;
                 }
             }
-            "frontend" | "client"
-            | "landing" | "dashboard"   => return Category::Ui,
+            "frontend" | "client" | "landing" | "dashboard" => return Category::Ui,
             "mono" | "desktop" | "desk" => return Category::Apps,
             _ => {}
         }
@@ -279,7 +298,11 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
             .unwrap_or_default()
             .to_string_lossy()
             .to_lowercase();
-        if name.contains("app") || name.contains("ui") || name.contains("desktop") || name.contains("mobile") {
+        if name.contains("app")
+            || name.contains("ui")
+            || name.contains("desktop")
+            || name.contains("mobile")
+        {
             return Category::Apps;
         }
         return Category::Services;
@@ -293,8 +316,13 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
     // ── Python: ML pipeline or tool ─────────────────────────────────────────
     if has_py || has_nb {
         let ml_markers = [
-            "train.py", "model.py", "dataset.py",
-            "notebooks", "data", "models", "checkpoints",
+            "train.py",
+            "model.py",
+            "dataset.py",
+            "notebooks",
+            "data",
+            "models",
+            "checkpoints",
         ];
         if ml_markers.iter().any(|m| path.join(m).exists()) {
             return Category::Ml;
@@ -302,14 +330,13 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
         return Category::Tools;
     }
 
-
     // ── Pure JS/TS: read package.json to know the truth ─────────────────────
     if has_pkg && !has_cargo {
         match read_pkg_kind(path) {
-            PkgKind::Frontend  => return Category::Ui,
-            PkgKind::Backend   => return Category::Services,
+            PkgKind::Frontend => return Category::Ui,
+            PkgKind::Backend => return Category::Services,
             PkgKind::Fullstack => return Category::Apps,
-            PkgKind::Unknown   => {
+            PkgKind::Unknown => {
                 // fall back to dir-name heuristic
                 if has("server") || has("backend") || has("api") {
                     return Category::Apps;
@@ -338,33 +365,74 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
 // ── package.json classifier ──────────────────────────────────────────────────
 
 #[derive(Debug)]
-enum PkgKind { Frontend, Backend, Fullstack, Unknown }
+enum PkgKind {
+    Frontend,
+    Backend,
+    Fullstack,
+    Unknown,
+}
 
 /// Known frontend deps/devDeps (frameworks, bundlers, ui libs)
 const FRONTEND_DEPS: &[&str] = &[
-    "react", "react-dom", "vue", "svelte", "solid-js",
-    "next", "nuxt", "sveltekit", "@sveltejs/kit",
-    "vite", "webpack", "parcel", "rollup", "esbuild",
-    "astro", "remix", "@remix-run/react",
-    "gatsby", "angular", "@angular/core",
-    "tailwindcss", "@shadcn/ui", "radix-ui",
-    "react-router", "react-router-dom", "wouter",
+    "react",
+    "react-dom",
+    "vue",
+    "svelte",
+    "solid-js",
+    "next",
+    "nuxt",
+    "sveltekit",
+    "@sveltejs/kit",
+    "vite",
+    "webpack",
+    "parcel",
+    "rollup",
+    "esbuild",
+    "astro",
+    "remix",
+    "@remix-run/react",
+    "gatsby",
+    "angular",
+    "@angular/core",
+    "tailwindcss",
+    "@shadcn/ui",
+    "radix-ui",
+    "react-router",
+    "react-router-dom",
+    "wouter",
 ];
 
 /// Known backend deps
 const BACKEND_DEPS: &[&str] = &[
-    "hono", "express", "fastify", "koa", "restify",
-    "nestjs", "@nestjs/core", "@nestjs/common",
-    "elysia", "h3", "nitro",
-    "better-sqlite3", "pg", "mysql2", "mongoose", "prisma",
-    "@prisma/client", "drizzle-orm",
-    "jsonwebtoken", "passport", "bcrypt", "bcryptjs",
-    "ws", "socket.io",
+    "hono",
+    "express",
+    "fastify",
+    "koa",
+    "restify",
+    "nestjs",
+    "@nestjs/core",
+    "@nestjs/common",
+    "elysia",
+    "h3",
+    "nitro",
+    "better-sqlite3",
+    "pg",
+    "mysql2",
+    "mongoose",
+    "prisma",
+    "@prisma/client",
+    "drizzle-orm",
+    "jsonwebtoken",
+    "passport",
+    "bcrypt",
+    "bcryptjs",
+    "ws",
+    "socket.io",
 ];
 
 fn read_pkg_kind(dir: &Path) -> PkgKind {
     let raw = match std::fs::read_to_string(dir.join("package.json")) {
-        Ok(s)  => s,
+        Ok(s) => s,
         Err(_) => return PkgKind::Unknown,
     };
 
@@ -375,9 +443,9 @@ fn read_pkg_kind(dir: &Path) -> PkgKind {
     let has_be = all_deps.iter().any(|d| BACKEND_DEPS.contains(&d.as_str()));
 
     match (has_fe, has_be) {
-        (true,  true)  => PkgKind::Fullstack,
-        (true,  false) => PkgKind::Frontend,
-        (false, true)  => PkgKind::Backend,
+        (true, true) => PkgKind::Fullstack,
+        (true, false) => PkgKind::Frontend,
+        (false, true) => PkgKind::Backend,
         (false, false) => PkgKind::Unknown,
     }
 }
@@ -389,16 +457,16 @@ fn extract_dep_keys(json: &str) -> Vec<String> {
     for section in ["dependencies", "devDependencies"] {
         let start = match json.find(section) {
             Some(i) => i,
-            None    => continue,
+            None => continue,
         };
         // Find the opening `{` of the section
         let brace = match json[start..].find('{') {
             Some(i) => start + i + 1,
-            None    => continue,
+            None => continue,
         };
         // Walk until the matching closing `}`
         let mut depth = 1usize;
-        let mut pos   = brace;
+        let mut pos = brace;
         let bytes = json.as_bytes();
         while pos < bytes.len() && depth > 0 {
             match bytes[pos] {
@@ -415,7 +483,7 @@ fn extract_dep_keys(json: &str) -> Vec<String> {
             remaining = &remaining[q1 + 1..];
             let q2 = match remaining.find('"') {
                 Some(i) => i,
-                None    => break,
+                None => break,
             };
             let key = &remaining[..q2];
             remaining = &remaining[q2 + 1..];
@@ -491,9 +559,7 @@ fn is_c_cpp_embedded(path: &Path) -> bool {
     if !path.join("CMakeLists.txt").exists() {
         return false;
     }
-    has_ext(path, "ld")
-        || path.join("openocd.cfg").exists()
-        || path.join("openocd").exists()
+    has_ext(path, "ld") || path.join("openocd.cfg").exists() || path.join("openocd").exists()
 }
 
 fn has_android_manifest(path: &Path) -> bool {
@@ -503,7 +569,7 @@ fn has_android_manifest(path: &Path) -> bool {
     {
         return true;
     }
-    
+
     // Depth-limited search (depth <= 4)
     fn find_manifest(dir: &Path, depth: usize) -> bool {
         if depth > 4 {
@@ -514,7 +580,11 @@ fn has_android_manifest(path: &Path) -> bool {
                 let p = entry.path();
                 if p.is_dir() {
                     if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
-                        if name == "target" || name == "node_modules" || name == ".git" || name == "build" {
+                        if name == "target"
+                            || name == "node_modules"
+                            || name == ".git"
+                            || name == "build"
+                        {
                             continue;
                         }
                     }
@@ -530,4 +600,3 @@ fn has_android_manifest(path: &Path) -> bool {
     }
     find_manifest(path, 1)
 }
-

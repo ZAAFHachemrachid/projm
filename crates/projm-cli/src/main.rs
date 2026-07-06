@@ -1,7 +1,7 @@
-mod completions;
-mod main_cli;
-mod init_setup;
 mod blueprints;
+mod completions;
+mod init_setup;
+mod main_cli;
 
 use anyhow::Result;
 use clap::Parser;
@@ -27,7 +27,14 @@ fn main() -> Result<()> {
         }
         Commands::Blueprint { sub } => blueprints::run(sub),
         Commands::Check => projm_core::check::run(),
-        Commands::Run { path_or_query } => projm_core::run::run(path_or_query),
+        Commands::Run {
+            path_or_query,
+            list,
+            tui,
+            all,
+            selftest,
+        } => projm_core::runner::dispatch(path_or_query, list, tui, all, selftest),
+        Commands::Status { dirty, json } => projm_core::status::run(dirty, json),
         Commands::Clone {
             url,
             name,

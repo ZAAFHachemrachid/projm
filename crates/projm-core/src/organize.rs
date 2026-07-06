@@ -152,12 +152,7 @@ pub fn run_with_base(dir: &Path, base: &Path, dry_run: bool) -> Result<()> {
         .iter()
         .map(|m| {
             let group_label = m.group.as_deref().unwrap_or("─");
-            format!(
-                "{:<8}  {:<18}  {}",
-                m.cat.label(),
-                group_label,
-                m.name,
-            )
+            format!("{:<8}  {:<18}  {}", m.cat.label(), group_label, m.name,)
         })
         .collect();
 
@@ -304,4 +299,3 @@ pub fn organize_single(src: &Path) -> Result<PathBuf> {
     do_move(src, &dest)?;
     Ok(dest)
 }
-

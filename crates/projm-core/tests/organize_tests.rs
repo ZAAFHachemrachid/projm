@@ -195,8 +195,10 @@ fn test_is_monorepo_classification() {
     // 3. package.json without workspaces (should be classified under UI/Services/etc. based on normal rules)
     let p3 = tmp.path().join("my-normal-repo");
     std::fs::create_dir_all(&p3).unwrap();
-    std::fs::write(p3.join("package.json"), r#"{"dependencies": {"react": "18.0.0"}}"#).unwrap();
+    std::fs::write(
+        p3.join("package.json"),
+        r#"{"dependencies": {"react": "18.0.0"}}"#,
+    )
+    .unwrap();
     assert_eq!(projm_core::classify::classify(&p3, &rules), Category::Ui);
 }
-
-

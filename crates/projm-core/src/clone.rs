@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
-use std::process::Command;
 use anyhow::{Context, Result};
 use colored::Colorize;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Parse Git repository URL to extract the base name (default project name).
 pub fn extract_repo_name(url: &str) -> Option<String> {
@@ -83,7 +83,10 @@ fn check_git_installed() -> Result<()> {
 fn open_editor(path: &Path) -> Result<()> {
     let installed = crate::editors::detect_installed();
     if installed.is_empty() {
-        eprintln!("  {} No supported editors found on $PATH.", "warning:".yellow().bold());
+        eprintln!(
+            "  {} No supported editors found on $PATH.",
+            "warning:".yellow().bold()
+        );
         return Ok(());
     }
 
@@ -102,7 +105,8 @@ fn open_editor(path: &Path) -> Result<()> {
     // Suppress editor outputs so it runs cleanly in background
     cmd.stdout(std::process::Stdio::null());
     cmd.stderr(std::process::Stdio::null());
-    cmd.spawn().with_context(|| format!("Failed to spawn editor '{}'", editor))?;
+    cmd.spawn()
+        .with_context(|| format!("Failed to spawn editor '{}'", editor))?;
 
     // Update preferences
     prefs.set_last_editor(path, &editor)?;
@@ -145,10 +149,7 @@ pub fn run(url: &str, name: Option<String>, branch: Option<String>, open: bool) 
         );
     }
 
-    println!(
-        "  Cloning {} into temporary staging...",
-        url.cyan()
-    );
+    println!("  Cloning {} into temporary staging...", url.cyan());
 
     // 5. Create staging directory inside base to ensure fast rename operations
     let staging_root = tempfile::Builder::new()
@@ -166,12 +167,17 @@ pub fn run(url: &str, name: Option<String>, branch: Option<String>, open: bool) 
     }
     cmd.arg(url).arg(&staging_dir);
 
-    let status = cmd.status().context("Failed to execute git clone command")?;
+    let status = cmd
+        .status()
+        .context("Failed to execute git clone command")?;
     if !status.success() {
         anyhow::bail!("git clone failed with exit status: {}", status);
     }
 
-    println!("  {} Successfully cloned. Organizing project...", "✓".green().bold());
+    println!(
+        "  {} Successfully cloned. Organizing project...",
+        "✓".green().bold()
+    );
 
     // 7. Organize staging folder into the destination
     let dest_path = crate::organize::organize_single(&staging_dir)

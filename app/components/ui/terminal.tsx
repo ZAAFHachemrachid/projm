@@ -53,19 +53,23 @@ export default function TerminalView({ cwd }: TerminalViewProps) {
 
       termRef.current = term;
 
-      // Listen to keystrokes and pipe to Rust
+      // Listen to keystrokes and pipe to this project's PTY session
       term.onData((data) => {
-        invoke("cmd_write_terminal", { input: data }).catch((err) =>
+        invoke("cmd_write_terminal", { cwd, input: data }).catch((err) =>
           console.error("Failed to write to terminal stdin", err)
         );
       });
 
-      // Stream stdout/stderr from Rust
-      const unsubscribe = await listen("terminal-data", (event) => {
-        if (active) {
-          term.write(event.payload as string);
+      // Stream stdout/stderr from Rust; sessions are keyed by cwd, so only
+      // render output belonging to this terminal's project.
+      const unsubscribe = await listen<{ cwd: string; data: string }>(
+        "terminal-data",
+        (event) => {
+          if (active && event.payload.cwd === cwd) {
+            term.write(event.payload.data);
+          }
         }
-      });
+      );
       unlisten = unsubscribe;
 
       // Spawn backend process

@@ -104,7 +104,11 @@ fn test_suffix_match() {
 #[test]
 fn test_and_logic() {
     let (_root, path) = named_project("my-service-api", &["package.json"]);
-    fs::write(path.join("package.json"), r#"{"dependencies":{"hono":"^4.0.0"}}"#).unwrap();
+    fs::write(
+        path.join("package.json"),
+        r#"{"dependencies":{"hono":"^4.0.0"}}"#,
+    )
+    .unwrap();
 
     let rule = ValidatedRule {
         name: None,
@@ -118,19 +122,31 @@ fn test_and_logic() {
 
     // Missing suffix
     let (_root2, path2) = named_project("my-service", &["package.json"]);
-    fs::write(path2.join("package.json"), r#"{"dependencies":{"hono":"^4.0.0"}}"#).unwrap();
+    fs::write(
+        path2.join("package.json"),
+        r#"{"dependencies":{"hono":"^4.0.0"}}"#,
+    )
+    .unwrap();
     assert!(!rule.matches(&path2));
 
     // Missing dependency
     let (_root3, path3) = named_project("my-service-api", &["package.json"]);
-    fs::write(path3.join("package.json"), r#"{"dependencies":{"express":"^4.0.0"}}"#).unwrap();
+    fs::write(
+        path3.join("package.json"),
+        r#"{"dependencies":{"express":"^4.0.0"}}"#,
+    )
+    .unwrap();
     assert!(!rule.matches(&path3));
 }
 
 #[test]
 fn test_has_dep_cargo() {
     let dir = project(&["Cargo.toml"]);
-    fs::write(dir.path().join("Cargo.toml"), "[dependencies]\nburn = \"0.12.0\"\n").unwrap();
+    fs::write(
+        dir.path().join("Cargo.toml"),
+        "[dependencies]\nburn = \"0.12.0\"\n",
+    )
+    .unwrap();
 
     let rule = ValidatedRule {
         name: None,
@@ -143,14 +159,22 @@ fn test_has_dep_cargo() {
     assert!(rule.matches(dir.path()));
 
     let dir2 = project(&["Cargo.toml"]);
-    fs::write(dir2.path().join("Cargo.toml"), "[dependencies]\ntokio = \"1.0\"\n").unwrap();
+    fs::write(
+        dir2.path().join("Cargo.toml"),
+        "[dependencies]\ntokio = \"1.0\"\n",
+    )
+    .unwrap();
     assert!(!rule.matches(dir2.path()));
 }
 
 #[test]
 fn test_has_dep_package_json() {
     let dir = project(&["package.json"]);
-    fs::write(dir.path().join("package.json"), r#"{"dependencies":{"tensorflow":"^2.0"}}"#).unwrap();
+    fs::write(
+        dir.path().join("package.json"),
+        r#"{"dependencies":{"tensorflow":"^2.0"}}"#,
+    )
+    .unwrap();
 
     let rule = ValidatedRule {
         name: None,
@@ -163,14 +187,22 @@ fn test_has_dep_package_json() {
     assert!(rule.matches(dir.path()));
 
     let dir2 = project(&["package.json"]);
-    fs::write(dir2.path().join("package.json"), r#"{"dependencies":{"react":"^18.0"}}"#).unwrap();
+    fs::write(
+        dir2.path().join("package.json"),
+        r#"{"dependencies":{"react":"^18.0"}}"#,
+    )
+    .unwrap();
     assert!(!rule.matches(dir2.path()));
 }
 
 #[test]
 fn test_has_dep_requirements_txt() {
     let dir = project(&["requirements.txt"]);
-    fs::write(dir.path().join("requirements.txt"), "tensorflow>=2.0\nscikit-learn\n# comment").unwrap();
+    fs::write(
+        dir.path().join("requirements.txt"),
+        "tensorflow>=2.0\nscikit-learn\n# comment",
+    )
+    .unwrap();
 
     let rule = ValidatedRule {
         name: None,
@@ -206,7 +238,11 @@ fn test_has_dep_requirements_txt() {
 #[test]
 fn test_has_dep_pyproject_toml() {
     let dir = project(&["pyproject.toml"]);
-    fs::write(dir.path().join("pyproject.toml"), "[project]\ndependencies = [\n  \"tensorflow>=2.0\",\n  \"pandas\"\n]\n").unwrap();
+    fs::write(
+        dir.path().join("pyproject.toml"),
+        "[project]\ndependencies = [\n  \"tensorflow>=2.0\",\n  \"pandas\"\n]\n",
+    )
+    .unwrap();
 
     let rule = ValidatedRule {
         name: None,
@@ -219,14 +255,22 @@ fn test_has_dep_pyproject_toml() {
     assert!(rule.matches(dir.path()));
 
     let dir2 = project(&["pyproject.toml"]);
-    fs::write(dir2.path().join("pyproject.toml"), "[tool.poetry.dependencies]\ntensorflow = \"^2.0\"\n").unwrap();
+    fs::write(
+        dir2.path().join("pyproject.toml"),
+        "[tool.poetry.dependencies]\ntensorflow = \"^2.0\"\n",
+    )
+    .unwrap();
     assert!(rule.matches(dir2.path()));
 }
 
 #[test]
 fn test_has_dep_remotion_to_content() {
     let dir = project(&["package.json"]);
-    fs::write(dir.path().join("package.json"), r#"{"dependencies":{"remotion":"^4.0.0"}}"#).unwrap();
+    fs::write(
+        dir.path().join("package.json"),
+        r#"{"dependencies":{"remotion":"^4.0.0"}}"#,
+    )
+    .unwrap();
 
     let rule = ValidatedRule {
         name: None,

@@ -193,7 +193,11 @@ fn run_blueprint(name: Option<String>) -> Result<()> {
 
     if !status.success() {
         println!();
-        println!("  {} Command failed with exit status: {}", "✗".red(), status);
+        println!(
+            "  {} Command failed with exit status: {}",
+            "✗".red(),
+            status
+        );
         println!();
         return Ok(());
     }
@@ -276,7 +280,10 @@ fn delete(name: Option<String>) -> Result<()> {
 
     println!();
     let ok = Confirm::with_theme(&theme)
-        .with_prompt(format!("Are you sure you want to delete blueprint '{}'?", blueprint_name.cyan()))
+        .with_prompt(format!(
+            "Are you sure you want to delete blueprint '{}'?",
+            blueprint_name.cyan()
+        ))
         .default(false)
         .interact()?;
 
@@ -284,7 +291,11 @@ fn delete(name: Option<String>) -> Result<()> {
         store.blueprints.retain(|b| b.name != blueprint_name);
         store.save()?;
         println!();
-        println!("  {} Blueprint '{}' deleted successfully!", "✓".green(), blueprint_name.bold());
+        println!(
+            "  {} Blueprint '{}' deleted successfully!",
+            "✓".green(),
+            blueprint_name.bold()
+        );
         println!();
     } else {
         println!();
@@ -310,15 +321,13 @@ fn edit(name: Option<String>) -> Result<()> {
 
     // Resolve which blueprint to edit
     let index = match name {
-        Some(ref n) => {
-            match store.blueprints.iter().position(|b| b.name == *n) {
-                Some(idx) => idx,
-                None => {
-                    println!("  {} Blueprint '{}' not found.", "✗".red(), n);
-                    return Ok(());
-                }
+        Some(ref n) => match store.blueprints.iter().position(|b| b.name == *n) {
+            Some(idx) => idx,
+            None => {
+                println!("  {} Blueprint '{}' not found.", "✗".red(), n);
+                return Ok(());
             }
-        }
+        },
         None => {
             let items: Vec<String> = store
                 .blueprints
@@ -338,7 +347,10 @@ fn edit(name: Option<String>) -> Result<()> {
     let old_command = store.blueprints[index].command.clone();
 
     println!();
-    println!("{}", format!("  ✨ Edit Blueprint: {} ✨", old_name.bold()).cyan());
+    println!(
+        "{}",
+        format!("  ✨ Edit Blueprint: {} ✨", old_name.bold()).cyan()
+    );
     println!();
 
     let new_name: String = Input::with_theme(&theme)
@@ -380,7 +392,11 @@ fn edit(name: Option<String>) -> Result<()> {
     store.save()?;
 
     println!();
-    println!("  {} Blueprint '{}' updated successfully!", "✓".green(), new_name.bold());
+    println!(
+        "  {} Blueprint '{}' updated successfully!",
+        "✓".green(),
+        new_name.bold()
+    );
     println!();
 
     Ok(())

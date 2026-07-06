@@ -110,6 +110,10 @@ fn roundtrip_last_project() {
     prefs.set_last_project_at(&path, &project).unwrap();
 
     let loaded = Prefs::load_from(path);
-    let expected = project.canonicalize().unwrap_or(project).to_string_lossy().to_string();
+    let expected = project
+        .canonicalize()
+        .unwrap_or(project)
+        .to_string_lossy()
+        .to_string();
     assert_eq!(loaded.last_project, Some(expected));
 }

@@ -87,7 +87,8 @@ export extern "projm clone" [
     --branch(-b): string
     --open(-o)
 ]
-"#.to_string())
+"#
+    .to_string())
 }
 
 fn write_generated<G: Generator>(generator: G, cmd: &mut clap::Command) -> Result<()> {
@@ -126,4 +127,3 @@ mod tests {
         assert!(script.contains("projm"));
     }
 }
-

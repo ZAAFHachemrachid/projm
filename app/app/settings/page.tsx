@@ -32,6 +32,8 @@ import {
   Sparkles,
   BookOpen,
   ArrowLeft,
+  Bot,
+  Terminal,
 } from "lucide-react";
 
 interface Config {
@@ -43,6 +45,14 @@ interface Editor {
   binary: string;
   name: string;
   path: string;
+}
+
+interface AgentInfo {
+  name: string;
+  command: string;
+  binary: string;
+  installed: boolean;
+  path: string | null;
 }
 
 interface CustomRule {
@@ -282,6 +292,17 @@ export default function SettingsPage() {
   const [editBlueprintName, setEditBlueprintName] = useState("");
   const [editBlueprintCommand, setEditBlueprintCommand] = useState("");
 
+  // AI Agents States
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
+  const [newAgentName, setNewAgentName] = useState("");
+  const [newAgentCommand, setNewAgentCommand] = useState("");
+  const [savingAgent, setSavingAgent] = useState(false);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [agentMessage, setAgentMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [editingAgent, setEditingAgent] = useState<string | null>(null);
+  const [editAgentName, setEditAgentName] = useState("");
+  const [editAgentCommand, setEditAgentCommand] = useState("");
+
   // Rules Editor States
   const [rulesRaw, setRulesRaw] = useState("");
   const [rulesList, setRulesList] = useState<CustomRule[]>([]);
@@ -426,13 +447,89 @@ export default function SettingsPage() {
     setTimeout(() => setBlueprintMessage(null), 3000);
   }
 
+  async function loadAgents() {
+    try {
+      const list = await invoke<AgentInfo[]>("cmd_get_agents");
+      setAgents(list);
+    } catch (err) {
+      console.error("Failed to load AI agents:", err);
+    }
+  }
+
+  async function handleAddAgent() {
+    const name = newAgentName.trim();
+    const command = newAgentCommand.trim();
+    if (!name || !command) return;
+    setSavingAgent(true);
+    setAgentError(null);
+    setAgentMessage(null);
+    try {
+      await invoke("cmd_add_agent", { name, command });
+      await loadAgents();
+      setNewAgentName("");
+      setNewAgentCommand("");
+      setAgentMessage({ ok: true, text: `Agent '${name}' added successfully!` });
+    } catch (err) {
+      setAgentError(String(err));
+      setAgentMessage({ ok: false, text: "Failed to add agent." });
+    } finally {
+      setSavingAgent(false);
+      setTimeout(() => setAgentMessage(null), 3000);
+    }
+  }
+
+  function startEditAgent(agent: AgentInfo) {
+    setEditingAgent(agent.name);
+    setEditAgentName(agent.name);
+    setEditAgentCommand(agent.command);
+    setAgentError(null);
+  }
+
+  async function handleSaveEditAgent(oldName: string) {
+    const name = editAgentName.trim();
+    const command = editAgentCommand.trim();
+    if (!name || !command) return;
+    setSavingAgent(true);
+    setAgentError(null);
+    setAgentMessage(null);
+    try {
+      await invoke("cmd_update_agent", { oldName, name, command });
+      await loadAgents();
+      setEditingAgent(null);
+      setAgentMessage({ ok: true, text: `Agent '${name}' updated!` });
+    } catch (err) {
+      setAgentError(String(err));
+      setAgentMessage({ ok: false, text: "Failed to update agent." });
+    } finally {
+      setSavingAgent(false);
+      setTimeout(() => setAgentMessage(null), 3000);
+    }
+  }
+
+  async function handleDeleteAgent(name: string) {
+    setAgentError(null);
+    setAgentMessage(null);
+    try {
+      await invoke("cmd_delete_agent", { name });
+      await loadAgents();
+      setAgentMessage({ ok: true, text: `Agent '${name}' deleted.` });
+    } catch (err) {
+      setAgentError(String(err));
+      setAgentMessage({ ok: false, text: "Failed to delete agent." });
+    }
+    setTimeout(() => setAgentMessage(null), 3000);
+  }
+
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadConfig(), loadEditors(), loadRules(), loadBlueprints()]);
+      await Promise.all([loadConfig(), loadEditors(), loadRules(), loadBlueprints(), loadAgents()]);
       setLoading(false);
     }
     init();
+    // Deep link: /settings?tab=agents opens directly on the requested tab.
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab) setActiveTab(tab);
   }, []);
 
   async function handleSaveBase() {
@@ -620,6 +717,7 @@ export default function SettingsPage() {
     { id: "general", label: "General", icon: Sliders },
     { id: "categories", label: "Categories", icon: Layers },
     { id: "blueprints", label: "Blueprints", icon: Sparkles },
+    { id: "agents", label: "AI Agents", icon: Bot },
     { id: "rules", label: "Rules Config", icon: BookOpen },
     { id: "engine", label: "Engine Specs", icon: Info },
   ];
@@ -1140,6 +1238,183 @@ export default function SettingsPage() {
                         <AlertCircle className="size-4 shrink-0" />
                       )}
                       {blueprintMessage.text}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* TAB: AI AGENTS (CODING AGENT CLIS) */}
+          {activeTab === "agents" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <Card className="border border-white/5 bg-zinc-950/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-white/10">
+                <CardHeader className="p-6 pb-4">
+                  <CardTitle className="text-xs font-bold tracking-widest uppercase text-emerald-400 flex items-center gap-2.5">
+                    <Bot className="size-4.5 text-emerald-400" />
+                    AI Coding Agents
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-5">
+                  <p className="text-sm text-zinc-400 leading-relaxed">
+                    Configure the AI agent CLIs you can launch inside any project&apos;s shell —
+                    Claude Code, Codex, Gemini CLI, OpenCode, Aider, or any custom command.
+                    Launch them from a project&apos;s <span className="text-zinc-300 font-semibold">Run &amp; Shell</span> panel
+                    via the <span className="text-zinc-300 font-semibold">AI Agent</span> button.
+                  </p>
+
+                  {/* Add Agent Form */}
+                  <div className="p-4 bg-zinc-900/20 border border-white/5 rounded-xl space-y-3.5">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      New Agent
+                    </label>
+                    <div className="space-y-3">
+                      <Input
+                        value={newAgentName}
+                        onChange={(e) => { setNewAgentName(e.target.value); setAgentError(null); }}
+                        placeholder="Agent name (e.g. Claude Code)"
+                        className="text-sm bg-black/40 border-white/5 h-10 focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+                      />
+                      <Input
+                        value={newAgentCommand}
+                        onChange={(e) => { setNewAgentCommand(e.target.value); setAgentError(null); }}
+                        placeholder="Launch command (e.g. claude, codex --model gpt-5, aider)"
+                        className="text-sm bg-black/40 border-white/5 h-10 font-mono focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+                      />
+                      {agentError && (
+                        <p className="text-xs text-rose-400 flex items-center gap-1.5">
+                          <AlertCircle className="size-3.5" />
+                          {agentError}
+                        </p>
+                      )}
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={handleAddAgent}
+                          disabled={!newAgentName.trim() || !newAgentCommand.trim() || savingAgent}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold h-9 px-4 text-xs transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          <Plus className="size-3.5 mr-1.5" />
+                          {savingAgent ? "Adding..." : "Add Agent"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Agents List */}
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                    {agents.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/10 border border-dashed border-white/5 rounded-xl">
+                        <Bot className="size-8 text-zinc-600 mb-2" />
+                        <p className="text-xs text-zinc-400">No AI agents configured yet.</p>
+                        <p className="text-[10px] text-zinc-500 mt-1">Add one above to get started.</p>
+                      </div>
+                    ) : (
+                      agents.map((agent) => {
+                        const isEditing = editingAgent === agent.name;
+                        return (
+                          <div
+                            key={agent.name}
+                            className="p-4 bg-zinc-900/20 border border-white/5 hover:border-white/10 rounded-xl space-y-3 transition-all"
+                          >
+                            {isEditing ? (
+                              /* Edit Mode */
+                              <div className="space-y-3">
+                                <Input
+                                  value={editAgentName}
+                                  onChange={(e) => setEditAgentName(e.target.value)}
+                                  placeholder="Agent name"
+                                  className="h-8 text-xs bg-black/40 border-white/5 focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+                                />
+                                <Input
+                                  value={editAgentCommand}
+                                  onChange={(e) => setEditAgentCommand(e.target.value)}
+                                  placeholder="Launch command"
+                                  className="h-8 text-xs bg-black/40 border-white/5 font-mono focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    onClick={() => setEditingAgent(null)}
+                                    variant="ghost"
+                                    className="text-xs text-zinc-400 hover:text-white h-8 px-3"
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleSaveEditAgent(agent.name)}
+                                    disabled={!editAgentName.trim() || !editAgentCommand.trim()}
+                                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold h-8 px-3 transition-all active:scale-95"
+                                  >
+                                    <Save className="size-3 mr-1.5" />
+                                    Save
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              /* View Mode */
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${agent.installed ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-zinc-600"}`} />
+                                    <span className="font-mono text-sm font-semibold text-zinc-200">{agent.name}</span>
+                                    {agent.installed ? (
+                                      <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-mono py-0 px-1.5">
+                                        <Check className="size-2.5 mr-1" />
+                                        installed
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="bg-zinc-800/60 text-zinc-500 border border-white/5 text-[9px] font-mono py-0 px-1.5">
+                                        not found on $PATH
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => startEditAgent(agent)}
+                                      className="p-1.5 text-zinc-500 hover:text-white hover:bg-white/5 rounded transition-all"
+                                      title="Edit agent"
+                                    >
+                                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteAgent(agent.name)}
+                                      className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all"
+                                      title="Delete agent"
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500 bg-black/30 px-3 py-2 rounded-lg border border-white/5">
+                                  <Terminal className="size-3 shrink-0 text-zinc-600" />
+                                  <span className="truncate select-all">{agent.command}</span>
+                                </div>
+                                {agent.installed && agent.path && (
+                                  <p className="text-[10px] font-mono text-zinc-600 truncate" title={agent.path}>
+                                    {agent.path}
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {agentMessage && (
+                    <div className={`p-3 rounded-lg border text-xs flex items-center gap-2 ${
+                      agentMessage.ok
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                        : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                    }`}>
+                      {agentMessage.ok ? (
+                        <Check className="size-4 shrink-0" />
+                      ) : (
+                        <AlertCircle className="size-4 shrink-0" />
+                      )}
+                      {agentMessage.text}
                     </div>
                   )}
                 </CardContent>

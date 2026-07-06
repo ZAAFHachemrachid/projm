@@ -1,7 +1,7 @@
 use projm_core::editors::{detect_installed, KNOWN_EDITORS};
-use std::{fs, sync::Mutex};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+use std::{fs, sync::Mutex};
 use tempfile::TempDir;
 
 static PATH_MUTEX: Mutex<()> = Mutex::new(());
@@ -137,8 +137,9 @@ fn no_duplicate_names_in_known_editors() {
 #[test]
 fn antigravity_is_in_known_editors() {
     assert!(
-        KNOWN_EDITORS.iter().any(|(b, n)| *b == "antigravity-ide" && *n == "Antigravity"),
+        KNOWN_EDITORS
+            .iter()
+            .any(|(b, n)| *b == "antigravity-ide" && *n == "Antigravity"),
         "antigravity-ide should be in the editor list"
     );
 }
-

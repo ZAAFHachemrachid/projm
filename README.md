@@ -121,6 +121,15 @@ pn /path/to/project
 
 # Verify active development tools and environment health
 projm check
+
+# Git health sweep across all organized projects (branch, dirty, ahead/behind)
+projm status          # or: projm st
+
+# Show only repos that are dirty or out of sync with upstream
+projm status --dirty
+
+# Machine-readable output for scripting
+projm status --json
 ```
 
 ## Desktop App

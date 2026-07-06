@@ -45,7 +45,8 @@ pub fn read_rules_raw() -> Result<String, String> {
 }
 
 pub fn save_rules_raw(content: &str) -> Result<(), String> {
-    let _parsed: RulesConfig = toml::from_str(content).map_err(|e| format!("Invalid TOML/Rules syntax: {}", e))?;
+    let _parsed: RulesConfig =
+        toml::from_str(content).map_err(|e| format!("Invalid TOML/Rules syntax: {}", e))?;
     let path = rules_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -67,7 +68,11 @@ pub fn load_rules() -> Vec<ValidatedRule> {
     let contents = match std::fs::read_to_string(&path) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("  {} Failed to read rules.toml: {}", "warning:".yellow().bold(), e);
+            eprintln!(
+                "  {} Failed to read rules.toml: {}",
+                "warning:".yellow().bold(),
+                e
+            );
             return Vec::new();
         }
     };
@@ -75,7 +80,11 @@ pub fn load_rules() -> Vec<ValidatedRule> {
     let raw_config: RulesConfig = match toml::from_str(&contents) {
         Ok(cfg) => cfg,
         Err(e) => {
-            eprintln!("  {} Failed to parse rules.toml: {}", "warning:".yellow().bold(), e);
+            eprintln!(
+                "  {} Failed to parse rules.toml: {}",
+                "warning:".yellow().bold(),
+                e
+            );
             return Vec::new();
         }
     };
@@ -256,7 +265,11 @@ impl ValidatedRule {
         if path.join("pyproject.toml").exists() {
             if let Ok(content) = std::fs::read_to_string(path.join("pyproject.toml")) {
                 if let Ok(pyproject) = toml::from_str::<toml::Value>(&content) {
-                    if let Some(deps) = pyproject.get("project").and_then(|p| p.get("dependencies")).and_then(|d| d.as_array()) {
+                    if let Some(deps) = pyproject
+                        .get("project")
+                        .and_then(|p| p.get("dependencies"))
+                        .and_then(|d| d.as_array())
+                    {
                         for dep_val in deps {
                             if let Some(dep_str) = dep_val.as_str() {
                                 let pkg_name = dep_str
@@ -270,7 +283,12 @@ impl ValidatedRule {
                             }
                         }
                     }
-                    if let Some(deps) = pyproject.get("tool").and_then(|t| t.get("poetry")).and_then(|p| p.get("dependencies")).and_then(|d| d.as_table()) {
+                    if let Some(deps) = pyproject
+                        .get("tool")
+                        .and_then(|t| t.get("poetry"))
+                        .and_then(|p| p.get("dependencies"))
+                        .and_then(|d| d.as_table())
+                    {
                         if deps.contains_key(dep) {
                             return true;
                         }
