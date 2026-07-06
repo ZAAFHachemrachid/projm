@@ -3,8 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   FolderTree,
@@ -27,6 +25,8 @@ import {
 } from "lucide-react";
 import RunnerPanel from "@/components/ui/runner-panel";
 import ProjectTabs from "@/components/project-tabs";
+import { SettingsPanel } from "@/components/settings-panel";
+import { ScanPanel } from "@/components/scan-panel";
 import {
   TooltipProvider,
   Tooltip,
@@ -425,6 +425,13 @@ export default function WorkspacePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
+  // In-page overlays for Settings / Scan, rendered ON TOP of the workspace so
+  // every RunnerPanel (and its live terminals) stays mounted underneath.
+  // Navigating to the /settings or /scan routes would unmount the workspace and
+  // wipe all shell sessions — this keeps them alive.
+  const [overlay, setOverlay] = useState<
+    { kind: "settings"; tab?: string } | { kind: "scan" } | null
+  >(null);
   const [categoriesExpanded, setCategoriesExpanded] = useState(true);
   const [projectsExpanded, setProjectsExpanded] = useState(true);
 
@@ -464,8 +471,6 @@ export default function WorkspacePage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const router = useRouter();
 
   // Open a project as a tab (deduped by path) and make it the active one.
   function openProject(p: ProjectItem) {
@@ -621,7 +626,7 @@ export default function WorkspacePage() {
 
   useHotkey("Mod+Comma" as any, (e: KeyboardEvent) => {
     e.preventDefault();
-    router.push("/settings");
+    setOverlay({ kind: "settings" });
   });
 
   // Run Environment Diagnostics Check
@@ -709,7 +714,7 @@ export default function WorkspacePage() {
 
   return (
     <TooltipProvider>
-      <div className="w-full h-full flex bg-[#090a0b] text-[#e2e8f0] font-sans select-none">
+      <div className="relative w-full h-full flex bg-[#090a0b] text-[#e2e8f0] font-sans select-none">
         
         {/* ── SIDEBAR 1: Left Narrow Icon Column (48px) ── */}
         <div className="w-12 h-full flex flex-col justify-between items-center py-4 bg-[#0d0e10] border-r border-[#1f2937]/30">
@@ -788,12 +793,13 @@ export default function WorkspacePage() {
 
             <Tooltip>
               <TooltipTrigger>
-                <Link
-                  href="/settings"
+                <button
+                  type="button"
+                  onClick={() => setOverlay({ kind: "settings" })}
                   className="text-muted-foreground hover:text-white transition-colors animate-none"
                 >
                   <Settings className="size-4" />
-                </Link>
+                </button>
               </TooltipTrigger>
               <TooltipContent side="right">
                 <span className="font-medium text-slate-200">Settings</span>
@@ -1068,13 +1074,14 @@ export default function WorkspacePage() {
                 <RefreshCw className={`size-3 text-indigo-100 ${scanning ? "animate-spin" : ""}`} />
                 <span>{scanning ? "Scanning..." : "Scan Workspace"}</span>
               </button>
-              <Link 
-                href="/settings" 
-                className="p-1.5 rounded hover:bg-[#18191b] text-[#64748b] hover:text-white transition-colors" 
+              <button
+                type="button"
+                onClick={() => setOverlay({ kind: "settings" })}
+                className="p-1.5 rounded hover:bg-[#18191b] text-[#64748b] hover:text-white transition-colors"
                 title="Settings"
               >
                 <Settings2 className="size-3.5" />
-              </Link>
+              </button>
             </div>
           </div>
 
@@ -1123,6 +1130,9 @@ export default function WorkspacePage() {
                     >
                       <RunnerPanel
                         project={{ name: p.name.toString(), path }}
+                        onOpenSettings={(tab) =>
+                          setOverlay({ kind: "settings", tab })
+                        }
                       />
                     </div>
                   );
@@ -1164,9 +1174,9 @@ export default function WorkspacePage() {
                   <div className="flex items-center gap-1.5 text-[10px] bg-[#111215] border border-white/5 rounded px-2 py-1 font-mono text-slate-400">
                     <span className="text-[#64748b]">Base path:</span>
                     <span className="text-indigo-400 truncate max-w-[140px] sm:max-w-xs">{config?.base ?? "Not configured"}</span>
-                    <Link href="/settings" className="text-indigo-300 hover:text-indigo-200 ml-1 font-sans transition-colors font-medium">
+                    <button type="button" onClick={() => setOverlay({ kind: "settings" })} className="text-indigo-300 hover:text-indigo-200 ml-1 font-sans transition-colors font-medium">
                       Change →
-                    </Link>
+                    </button>
                   </div>
                 </div>
 
@@ -1417,19 +1427,39 @@ export default function WorkspacePage() {
                         Enter the path to your source directories using the Scan page. The Projm background compiler automatically parses stacks, categorizes languages, and sets up Git tracking triggers.
                       </span>
                     </div>
-                    <Link 
-                      href="/scan" 
+                    <button
+                      type="button"
+                      onClick={() => setOverlay({ kind: "scan" })}
                       className="flex items-center gap-0.5 text-[10px] text-indigo-400 font-medium hover:text-indigo-300 shrink-0 mt-1 sm:mt-0 bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-500/20"
                     >
                       <span>Scan settings</span>
                       <ChevronRight className="size-2.5" />
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
             )}
           </div>
         </div>
+
+        {/* ── Settings / Scan overlays ── rendered on top of the workspace so
+            RunnerPanels stay mounted and shell sessions survive. Scoped to this
+            (relative) container, so the titlebar stays visible above. ── */}
+        {overlay?.kind === "settings" && (
+          <div className="absolute inset-0 z-40 bg-[#090a0b] overflow-hidden flex flex-col">
+            <SettingsPanel
+              onClose={() => setOverlay(null)}
+              initialTab={overlay.tab}
+            />
+          </div>
+        )}
+        {overlay?.kind === "scan" && (
+          <div className="absolute inset-0 z-40 bg-[#090a0b] overflow-y-auto">
+            <div className="p-6 lg:p-8 max-w-3xl mx-auto">
+              <ScanPanel onClose={() => setOverlay(null)} />
+            </div>
+          </div>
+        )}
 
         {/* ── Quick Ctrl+K Modal Command Finder ── */}
         {searchOpen && (

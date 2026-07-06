@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -282,12 +280,16 @@ function DirectoryTree({ baseDir, categories }: { baseDir: string; categories: s
   );
 }
 
-export default function SettingsPage() {
-  const router = useRouter();
-
-  // Escape to seamlessly navigate back home
+export function SettingsPanel({
+  onClose,
+  initialTab = "general",
+}: {
+  onClose: () => void;
+  initialTab?: string;
+}) {
+  // Escape to seamlessly close the settings overlay
   useHotkey("Escape", () => {
-    router.push("/");
+    onClose();
   });
 
   const [config, setConfig] = useState<Config | null>(null);
@@ -296,7 +298,7 @@ export default function SettingsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   
   // Tabs active section state
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   // Blueprints States
   const [blueprints, setBlueprints] = useState<{ name: string; command: string }[]>([]);
@@ -854,9 +856,9 @@ export default function SettingsPage() {
       <div className="border-b border-white/5 pb-4 shrink-0 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent flex items-center gap-3">
-            <Link href="/" className="group inline-flex items-center justify-center p-1.5 rounded-lg border border-white/5 bg-zinc-900/60 text-zinc-400 hover:text-white hover:border-white/10 hover:bg-white/5 transition-all duration-200 mr-1" title="Back to home">
+            <button type="button" onClick={onClose} className="group inline-flex items-center justify-center p-1.5 rounded-lg border border-white/5 bg-zinc-900/60 text-zinc-400 hover:text-white hover:border-white/10 hover:bg-white/5 transition-all duration-200 mr-1" title="Close settings">
               <ArrowLeft className="size-5 transition-transform group-hover:-translate-x-0.5" />
-            </Link>
+            </button>
             Settings
           </h1>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">

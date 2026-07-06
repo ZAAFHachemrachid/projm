@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import Link from "next/link";
 import {
   Play,
   Square,
@@ -131,8 +130,10 @@ function LogView({ lines }: { lines: string[] }) {
 /// Gemini CLI, …) inside this project's shell session.
 function AgentLauncher({
   onLaunch,
+  onOpenSettings,
 }: {
   onLaunch: (agent: AgentInfo) => Promise<void>;
+  onOpenSettings?: (tab?: string) => void;
 }) {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [open, setOpen] = useState(false);
@@ -228,13 +229,17 @@ function AgentLauncher({
             </div>
           )}
           <div className="mt-1 border-t border-border/40 pt-1">
-            <Link
-              href="/settings?tab=agents"
-              className="flex items-center gap-2 rounded px-2.5 py-1.5 text-[11px] text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onOpenSettings?.("agents");
+              }}
+              className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-[11px] text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
             >
               <Settings2 className="size-3" />
               Manage agents…
-            </Link>
+            </button>
           </div>
         </div>
       )}
@@ -244,8 +249,10 @@ function AgentLauncher({
 
 export default function RunnerPanel({
   project,
+  onOpenSettings,
 }: {
   project: { name: string; path: string };
+  onOpenSettings?: (tab?: string) => void;
 }) {
   // The parent remounts this component (key={project.path}) when the project
   // changes, so state starts fresh each time — no in-effect resets needed.
@@ -505,7 +512,7 @@ export default function RunnerPanel({
             <ExternalLink className="size-3" />
             Terminal
           </Button>
-          <AgentLauncher onLaunch={launchAgent} />
+          <AgentLauncher onLaunch={launchAgent} onOpenSettings={onOpenSettings} />
         </div>
       </div>
 

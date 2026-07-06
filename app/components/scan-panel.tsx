@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { invoke } from "@tauri-apps/api/core";
 
-export default function ScanPage() {
+export function ScanPanel({ onClose }: { onClose: () => void }) {
   const [path, setPath] = useState("");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -30,13 +32,28 @@ export default function ScanPage() {
     }
   }
 
+  // Escape closes the scan overlay.
+  useHotkey("Escape", () => {
+    onClose();
+  });
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Scan &amp; Organize</h1>
-        <p className="text-muted-foreground mt-1">
-          Scan a directory of projects and organize them into your base directory
-        </p>
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="group inline-flex items-center justify-center p-1.5 mt-1 rounded-lg border border-white/5 bg-zinc-900/60 text-zinc-400 hover:text-white hover:border-white/10 hover:bg-white/5 transition-all duration-200"
+          title="Close scan"
+        >
+          <ArrowLeft className="size-5 transition-transform group-hover:-translate-x-0.5" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold">Scan &amp; Organize</h1>
+          <p className="text-muted-foreground mt-1">
+            Scan a directory of projects and organize them into your base directory
+          </p>
+        </div>
       </div>
 
       <Card>
