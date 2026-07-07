@@ -6,11 +6,11 @@
 //! OSC 7 (cwd) + OSC 133 A/B/C/D (prompt/command boundaries) so the host can
 //! track cwd and command state without parsing prompts.
 //!
-//! - zsh:  synthetic `ZDOTDIR` (shim files source the user's own, guarded by
-//!         `PROJM_USER_ZDOTDIR` against projm-in-projm), spawned as a login
-//!         shell so `/etc/zprofile` (macOS `path_helper`) populates PATH.
+//! - zsh: synthetic `ZDOTDIR` (shim files source the user's own, guarded by
+//!   `PROJM_USER_ZDOTDIR` against projm-in-projm), spawned as a login
+//!   shell so `/etc/zprofile` (macOS `path_helper`) populates PATH.
 //! - bash: `--rcfile` + `-i` (bash ignores --rcfile under `-l`; the rcfile
-//!         emulates login init itself).
+//!   emulates login init itself).
 //! - fish: a guarded conf.d snippet (only activates when `PROJM_TERMINAL` set).
 //! - anything else: spawned plain.
 //!

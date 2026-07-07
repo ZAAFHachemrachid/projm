@@ -13,6 +13,9 @@ pub struct Cli {
     pub command: Commands,
 }
 
+// Variant size spread is inherent to clap subcommand enums (one short-lived
+// value per process); boxing the big variants only complicates the match arms.
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 pub enum Commands {
     /// Scan a directory and move projects into ~/projects/<category>/
@@ -109,6 +112,7 @@ pub enum Commands {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug, Clone)]
 pub enum RulesSubcommands {
     /// List rules in evaluation order

@@ -266,7 +266,7 @@ fn edit() -> Result<()> {
                 eprintln!("\n  {} invalid rules file: {}\n", "error:".red().bold(), e);
                 let choice = Select::with_theme(&ColorfulTheme::default())
                     .with_prompt("rules.toml has errors")
-                    .items(&["Re-edit", "Keep anyway", "Revert to previous"])
+                    .items(["Re-edit", "Keep anyway", "Revert to previous"])
                     .default(0)
                     .interact()?;
                 match choice {
