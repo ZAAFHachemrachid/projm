@@ -10,8 +10,15 @@
 //! - webkit2gtk resolves its helper binaries relative to the bundle →
 //!   "Failed to spawn WebKitNetworkProcess"
 //!
-//! `appimage_env_fix()` computes what to undo. It returns `None` outside an
-//! AppImage so every spawn path can apply it unconditionally.
+//! `appimage_env_fix()` computes what to undo. It returns `None` when there is
+//! nothing to scrub so every spawn path can apply it unconditionally.
+//!
+//! Contamination is detected two ways: entries under the current `$APPDIR`,
+//! and entries under `/tmp/.mount_*` — the runtime mount prefix every AppImage
+//! launcher uses. The second catches leaks the first can't: a nested launch
+//! (app started from inside another AppImage's shell) inherits the *outer*
+//! mount's paths, and a half-scrubbed environment may have poisoned path lists
+//! with no `APPDIR` marker left at all.
 
 /// Environment repairs to apply to a child process before spawning it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -39,25 +46,45 @@ const PATH_LIST_VARS: &[&str] = &[
     "QT_PLUGIN_PATH",
 ];
 
-/// Compute the repairs for the current process environment. `None` when not
-/// running from an AppImage (nothing to do).
+/// Runtime mount prefix used by AppImage launchers. Any path entry under it is
+/// poisoned regardless of which AppImage (current, parent, stale) mounted it.
+const MOUNT_PREFIX: &str = "/tmp/.mount_";
+
+/// Compute the repairs for the current process environment. `None` when the
+/// environment is clean (nothing to do).
 pub fn appimage_env_fix() -> Option<EnvFix> {
-    let appdir = std::env::var("APPDIR").ok()?;
-    let appdir = appdir.trim_end_matches('/');
-    if appdir.is_empty() {
-        return None;
+    let appdir = std::env::var("APPDIR").ok();
+    let appdir = appdir
+        .as_deref()
+        .map(|d| d.trim_end_matches('/'))
+        .filter(|d| !d.is_empty());
+    let fix = compute_fix(appdir, std::env::vars());
+    if fix.remove.is_empty() && fix.set.is_empty() {
+        None
+    } else {
+        Some(fix)
     }
-    Some(compute_fix(appdir, std::env::vars()))
 }
 
-fn compute_fix(appdir: &str, vars: impl Iterator<Item = (String, String)>) -> EnvFix {
+fn compute_fix(appdir: Option<&str>, vars: impl Iterator<Item = (String, String)>) -> EnvFix {
     let mut fix = EnvFix::default();
-    let in_appdir = |entry: &str| {
+    let poisoned = |entry: &str| {
         let e = entry.trim_end_matches('/');
-        e == appdir || e.starts_with(&format!("{}/", appdir))
+        if e.starts_with(MOUNT_PREFIX) {
+            return true;
+        }
+        // APPDIR can live outside /tmp/.mount_* (e.g. an extracted image run
+        // via AppRun), so check it separately.
+        match appdir {
+            Some(d) => e == d || e.starts_with(&format!("{}/", d)),
+            None => false,
+        }
     };
 
     for (key, value) in vars {
+        // Markers are only ever set by AppImage launchers; a stale one (e.g.
+        // ARGV0 inherited through a nested launch) still breaks rustup, so
+        // remove them whenever present.
         if MARKER_VARS.contains(&key.as_str()) {
             fix.remove.push(key);
             continue;
@@ -65,7 +92,7 @@ fn compute_fix(appdir: &str, vars: impl Iterator<Item = (String, String)>) -> En
         if PATH_LIST_VARS.contains(&key.as_str()) {
             let kept: Vec<&str> = value
                 .split(':')
-                .filter(|e| !e.is_empty() && !in_appdir(e))
+                .filter(|e| !e.is_empty() && !poisoned(e))
                 .collect();
             let filtered = kept.join(":");
             if filtered == value {
@@ -82,7 +109,7 @@ fn compute_fix(appdir: &str, vars: impl Iterator<Item = (String, String)>) -> En
         // GSETTINGS_SCHEMA_DIR, WEBKIT_EXEC_PATH, …): the bundle path is
         // useless outside the app, so drop them and let the child use system
         // defaults.
-        if in_appdir(&value) {
+        if poisoned(&value) {
             fix.remove.push(key);
         }
     }
@@ -101,18 +128,18 @@ mod tests {
     }
 
     #[test]
-    fn no_appdir_means_no_fix() {
-        // appimage_env_fix reads the real env; compute_fix is the pure core.
-        // Simulate absence by checking the marker isn't required in compute_fix
-        // callers — covered by the Option in appimage_env_fix.
-        let fix = compute_fix("/tmp/.mount_XYZ", env(&[("HOME", "/home/u")]).into_iter());
+    fn clean_env_means_no_fix() {
+        let fix = compute_fix(
+            Some("/tmp/.mount_XYZ"),
+            env(&[("HOME", "/home/u")]).into_iter(),
+        );
         assert!(fix.remove.is_empty() && fix.set.is_empty());
     }
 
     #[test]
     fn markers_are_removed() {
         let fix = compute_fix(
-            "/tmp/.mount_XYZ",
+            Some("/tmp/.mount_XYZ"),
             env(&[
                 ("APPDIR", "/tmp/.mount_XYZ"),
                 ("APPIMAGE", "/home/u/Apps/x.AppImage"),
@@ -129,7 +156,7 @@ mod tests {
     #[test]
     fn path_lists_are_filtered_not_dropped() {
         let fix = compute_fix(
-            "/tmp/.mount_XYZ",
+            Some("/tmp/.mount_XYZ"),
             env(&[(
                 "LD_LIBRARY_PATH",
                 "/opt/cuda/lib64:/tmp/.mount_XYZ/usr/lib/:/tmp/.mount_XYZ/lib64/:",
@@ -146,7 +173,7 @@ mod tests {
     #[test]
     fn path_list_of_only_appdir_entries_is_removed() {
         let fix = compute_fix(
-            "/tmp/.mount_XYZ",
+            Some("/tmp/.mount_XYZ"),
             env(&[("GST_PLUGIN_SYSTEM_PATH", "/tmp/.mount_XYZ/usr/lib/gstreamer:")]).into_iter(),
         );
         assert_eq!(fix.remove, vec!["GST_PLUGIN_SYSTEM_PATH"]);
@@ -155,7 +182,7 @@ mod tests {
     #[test]
     fn scalar_pointing_into_bundle_is_removed() {
         let fix = compute_fix(
-            "/tmp/.mount_XYZ",
+            Some("/tmp/.mount_XYZ"),
             env(&[(
                 "GDK_PIXBUF_MODULE_FILE",
                 "/tmp/.mount_XYZ//usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache",
@@ -169,7 +196,7 @@ mod tests {
     #[test]
     fn unrelated_vars_survive() {
         let fix = compute_fix(
-            "/tmp/.mount_XYZ",
+            Some("/tmp/.mount_XYZ"),
             env(&[
                 ("HOME", "/home/u"),
                 ("SHELL", "/usr/bin/zsh"),
@@ -178,5 +205,45 @@ mod tests {
             .into_iter(),
         );
         assert!(fix.remove.is_empty() && fix.set.is_empty());
+    }
+
+    #[test]
+    fn other_appimage_mounts_are_filtered_too() {
+        // Nested launch: current APPDIR is one mount, but the env still
+        // carries entries from the outer AppImage's mount.
+        let fix = compute_fix(
+            Some("/tmp/.mount_INNER"),
+            env(&[(
+                "LD_LIBRARY_PATH",
+                "/opt/cuda/lib64:/tmp/.mount_OUTER/usr/lib/:/tmp/.mount_INNER/lib64/",
+            )])
+            .into_iter(),
+        );
+        assert_eq!(
+            fix.set,
+            vec![("LD_LIBRARY_PATH".to_string(), "/opt/cuda/lib64".to_string())]
+        );
+    }
+
+    #[test]
+    fn poison_without_appdir_is_still_scrubbed() {
+        // Half-scrubbed inheritance: markers already gone, path lists not.
+        let fix = compute_fix(
+            None,
+            env(&[
+                ("LD_LIBRARY_PATH", "/tmp/.mount_XYZ/usr/lib/:/opt/cuda/lib64"),
+                ("ARGV0", "app.AppImage"),
+                ("GDK_PIXBUF_MODULE_FILE", "/tmp/.mount_XYZ/usr/lib/loaders.cache"),
+                ("PATH", "/usr/bin:/bin"),
+            ])
+            .into_iter(),
+        );
+        let mut removed = fix.remove.clone();
+        removed.sort();
+        assert_eq!(removed, vec!["ARGV0", "GDK_PIXBUF_MODULE_FILE"]);
+        assert_eq!(
+            fix.set,
+            vec![("LD_LIBRARY_PATH".to_string(), "/opt/cuda/lib64".to_string())]
+        );
     }
 }
