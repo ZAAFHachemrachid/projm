@@ -274,6 +274,58 @@ fn pick_editor(project_path: &Path, term: &Term) -> Result<String> {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/// A project found under the organized base directory.
+pub struct ProjectEntry {
+    pub name: String,
+    pub path: PathBuf,
+    pub category: Category,
+}
+
+/// Walk `base/<category>[/<group>]/<project>` and return every project dir.
+pub fn collect_projects() -> Result<Vec<ProjectEntry>> {
+    let base = config::load().base;
+    let mut projects = Vec::new();
+
+    for cat in Category::all() {
+        let cat_dir = base.join(cat.dir_name());
+        if !cat_dir.exists() {
+            continue;
+        }
+
+        let mut top: Vec<_> = std::fs::read_dir(&cat_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir() && !e.file_name().to_string_lossy().starts_with('.'))
+            .collect();
+        top.sort_by_key(|e| e.file_name());
+
+        for entry in top {
+            if is_group_folder(&entry.path()) {
+                let mut children: Vec<_> = std::fs::read_dir(entry.path())?
+                    .filter_map(|e| e.ok())
+                    .filter(|e| {
+                        e.path().is_dir() && !e.file_name().to_string_lossy().starts_with('.')
+                    })
+                    .collect();
+                children.sort_by_key(|e| e.file_name());
+                for child in children {
+                    projects.push(ProjectEntry {
+                        name: child.file_name().to_string_lossy().to_string(),
+                        path: child.path(),
+                        category: cat.clone(),
+                    });
+                }
+            } else {
+                projects.push(ProjectEntry {
+                    name: entry.file_name().to_string_lossy().to_string(),
+                    path: entry.path(),
+                    category: cat.clone(),
+                });
+            }
+        }
+    }
+    Ok(projects)
+}
+
 pub(crate) fn is_group_folder(path: &Path) -> bool {
     let parent_name = match path.file_name() {
         Some(n) => n.to_string_lossy().to_lowercase(),

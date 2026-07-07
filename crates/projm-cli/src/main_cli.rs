@@ -89,6 +89,11 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Manage classification rules and per-project category pins
+    Rules {
+        #[command(subcommand)]
+        sub: RulesSubcommands,
+    },
     /// Clone a git repository directly and organize it
     Clone {
         /// Git repository URL (HTTPS or SSH)
@@ -101,6 +106,103 @@ pub enum Commands {
         /// Open in preferred editor after cloning
         #[arg(short, long)]
         open: bool,
+    },
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum RulesSubcommands {
+    /// List rules in evaluation order
+    List {
+        /// Emit machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Add a rule (at least one matcher flag is required)
+    Add {
+        /// Exact directory-name match
+        #[arg(long)]
+        name: Option<String>,
+        /// Substring match on the directory name
+        #[arg(long)]
+        name_contains: Option<String>,
+        /// Glob on the directory name (e.g. "*-api")
+        #[arg(long)]
+        name_glob: Option<String>,
+        /// Regex on the directory name
+        #[arg(long)]
+        name_regex: Option<String>,
+        /// Recognised project suffix (e.g. "fw")
+        #[arg(long)]
+        suffix: Option<String>,
+        /// Immediate parent directory name
+        #[arg(long)]
+        parent_dir: Option<String>,
+        /// A file/dir that must exist in the project root
+        #[arg(long)]
+        marker: Option<String>,
+        /// Dependency that must be present in a manifest
+        #[arg(long)]
+        has_dep: Option<String>,
+        /// Detected stack (rust, js, tauri, go, python, …)
+        #[arg(long)]
+        stack: Option<String>,
+        /// Free-text note shown in listings
+        #[arg(long)]
+        description: Option<String>,
+        /// Target category
+        #[arg(short, long)]
+        category: String,
+        /// Insert at this position (1 = evaluated first); default: append
+        #[arg(long)]
+        at: Option<usize>,
+    },
+    /// Remove a rule by list index or exact-name value
+    #[command(alias = "rm", alias = "delete")]
+    Remove {
+        /// Rule index from `projm rules list` (e.g. 2) or a `name` value
+        selector: String,
+    },
+    /// Explain how a path would be classified and why
+    Test {
+        /// Project directory to test (default: current dir)
+        path: Option<PathBuf>,
+        /// Emit machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Open rules.toml in $EDITOR (validated after save)
+    Edit,
+    /// Write rules.toml to a file, or stdout if no file given
+    Export {
+        /// Destination file
+        file: Option<PathBuf>,
+    },
+    /// Import rules from a file (merge by default, skipping duplicates)
+    Import {
+        /// Source rules file
+        file: PathBuf,
+        /// Replace the entire rules file instead of merging
+        #[arg(long)]
+        replace: bool,
+    },
+    /// Pin a project's category via a .projm.toml marker in the project dir
+    Pin {
+        /// Project directory (default: current dir)
+        path: Option<PathBuf>,
+        /// Category to pin
+        #[arg(short, long)]
+        category: String,
+        /// Optional group folder override
+        #[arg(long)]
+        group: Option<String>,
+        /// Hide this project from listings
+        #[arg(long)]
+        hidden: bool,
+    },
+    /// Interactively pick an organized project and assign a category
+    Assign {
+        /// Optional search query to pre-filter the picker
+        query: Option<String>,
     },
 }
 

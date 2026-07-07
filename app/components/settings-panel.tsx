@@ -76,70 +76,73 @@ interface TerminalConfig {
   emulators: TerminalCandidate[];
 }
 
-interface CustomRule {
+interface RuleMatcher {
   name?: string;
   name_contains?: string;
-  marker?: string;
+  name_glob?: string;
+  name_regex?: string;
   suffix?: string;
+  parent_dir?: string;
+  path_glob?: string;
+  marker?: string;
+  markers?: string[];
+  any_marker?: string[];
   has_dep?: string;
+  has_deps?: string[];
+  dep_version?: { name: string; req: string };
+  stack?: string;
+}
+
+// Matcher fields are flattened to the top level (mirrors the Rust serde shape).
+interface CustomRule extends RuleMatcher {
+  description?: string;
+  enabled?: boolean;
+  priority?: number;
+  any_of?: RuleMatcher[];
+  none_of?: RuleMatcher[];
   category: string;
 }
 
-// Simple robust client-side TOML parser for [[rule]] blocks
-function parseRulesToml(toml: string): CustomRule[] {
-  const rules: CustomRule[] = [];
-  const blocks = toml.split(/\[\[rule\]\]/i);
-  for (let i = 1; i < blocks.length; i++) {
-    const block = blocks[i];
-    const rule: Partial<CustomRule> = {};
-    const lines = block.split("\n");
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      // Capture key and quoted value, ignoring trailing spaces or comments
-      const match = trimmed.match(/^([a-zA-Z0-9-_]+)\s*=\s*["']([^"']+)["']/);
-      if (match) {
-        const key = match[1];
-        const value = match[2];
-        if (["name", "name_contains", "marker", "suffix", "has_dep", "category"].includes(key)) {
-          rule[key as keyof CustomRule] = value;
-        }
-      }
-    }
-    if (rule.category) {
-      rules.push(rule as CustomRule);
-    }
-  }
-  return rules;
+const KNOWN_STACKS = [
+  "rust", "js", "tauri", "flutter", "go", "python", "rails",
+  "elixir", "gradle", "maven", "laravel", "cpp", "dotnet",
+];
+
+// Rules with list/table matchers or OR/NOT groups can't be modelled by the
+// simple form — they're shown read-only and edited in raw TOML mode.
+function isComplexRule(rule: CustomRule): boolean {
+  return Boolean(
+    rule.any_of?.length ||
+      rule.none_of?.length ||
+      rule.markers?.length ||
+      rule.any_marker?.length ||
+      rule.has_deps?.length ||
+      rule.dep_version,
+  );
 }
 
-// Stringifies CustomRule array back into rules.toml syntax
-function stringifyRulesToml(rules: CustomRule[]): string {
-  let toml = `# ==============================================================================\n`;
-  toml += `# Projm Custom Classification Rules Configuration (rules.toml)\n`;
-  toml += `# ==============================================================================\n`;
-  toml += `#\n`;
-  toml += `# Rules are evaluated from top to bottom. The first matching rule wins.\n`;
-  toml += `# Within a single [[rule]], all specified criteria must match (AND logic).\n`;
-  toml += `#\n`;
-  toml += `# Supported fields:\n`;
-  toml += `# - name          : Exact name match of the project directory (e.g. "pioneers-website")\n`;
-  toml += `# - name_contains : Substring match of the project directory name (e.g. "adrar")\n`;
-  toml += `# - marker        : File/directory presence marker in the project root (e.g. "rocket.toml")\n`;
-  toml += `# - suffix        : Override built-in suffix behaviour (e.g. "fw")\n`;
-  toml += `# - has_dep       : Check dependencies in Cargo.toml, package.json, or requirements.txt (e.g. "burn")\n`;
-  toml += `#\n\n`;
-
-  for (const rule of rules) {
-    toml += `[[rule]]\n`;
-    if (rule.name) toml += `name = "${rule.name}"\n`;
-    if (rule.name_contains) toml += `name_contains = "${rule.name_contains}"\n`;
-    if (rule.marker) toml += `marker = "${rule.marker}"\n`;
-    if (rule.suffix) toml += `suffix = "${rule.suffix}"\n`;
-    if (rule.has_dep) toml += `has_dep = "${rule.has_dep}"\n`;
-    toml += `category = "${rule.category}"\n\n`;
-  }
-  return toml;
+function summarizeComplexRule(rule: CustomRule): string {
+  const parts: string[] = [];
+  const scalars: [string, string | undefined][] = [
+    ["name", rule.name],
+    ["name_contains", rule.name_contains],
+    ["name_glob", rule.name_glob],
+    ["name_regex", rule.name_regex],
+    ["suffix", rule.suffix],
+    ["parent_dir", rule.parent_dir],
+    ["path_glob", rule.path_glob],
+    ["marker", rule.marker],
+    ["has_dep", rule.has_dep],
+    ["stack", rule.stack],
+  ];
+  for (const [k, v] of scalars) if (v) parts.push(`${k} = "${v}"`);
+  if (rule.markers?.length) parts.push(`markers = [${rule.markers.join(", ")}]`);
+  if (rule.any_marker?.length) parts.push(`any_marker = [${rule.any_marker.join(", ")}]`);
+  if (rule.has_deps?.length) parts.push(`has_deps = [${rule.has_deps.join(", ")}]`);
+  if (rule.dep_version) parts.push(`dep_version = ${rule.dep_version.name} ${rule.dep_version.req}`);
+  if (rule.any_of?.length) parts.push(`any_of (${rule.any_of.length} branches)`);
+  if (rule.none_of?.length) parts.push(`none_of (${rule.none_of.length})`);
+  return parts.join(", ") || "(matches everything)";
 }
 
 // Semantic category colors and visual styling mapping
@@ -491,15 +494,12 @@ export function SettingsPanel({
     try {
       const raw = await invoke<string>("cmd_get_rules_raw");
       setRulesRaw(raw);
-      try {
-        const parsed = parseRulesToml(raw);
-        setRulesList(parsed);
-        setRulesError(null);
-      } catch (err) {
-        setRulesError("Failed parsing rules.toml contents: " + err);
-      }
+      const list = await invoke<CustomRule[]>("cmd_rules_list");
+      setRulesList(list);
+      setRulesError(null);
     } catch (err) {
       console.error("Failed to load custom classification rules:", err);
+      setRulesError(`Failed to load rules: ${err}`);
     }
   }
 
@@ -748,23 +748,14 @@ export function SettingsPanel({
     handleSaveCategories(updated);
   }
 
-  // Dual-mode transition helper for Rules configuration
-  const handleToggleRulesMode = (visual: boolean) => {
-    if (visual) {
-      try {
-        const parsed = parseRulesToml(rulesRaw);
-        setRulesList(parsed);
-        setRulesError(null);
-        setIsVisualMode(true);
-      } catch (err) {
-        setRulesError("Cannot switch to Visual Designer: Invalid raw TOML syntax. Please correct code errors first.");
-      }
-    } else {
-      const stringified = stringifyRulesToml(rulesList);
-      setRulesRaw(stringified);
-      setRulesError(null);
-      setIsVisualMode(false);
-    }
+  // Dual-mode transition helper for Rules configuration.
+  // Both modes edit the backend file, so switching reloads from disk —
+  // unsaved changes in the current mode are discarded after a confirm.
+  const handleToggleRulesMode = async (visual: boolean) => {
+    if (visual === isVisualMode) return;
+    await loadRules();
+    setRulesError(null);
+    setIsVisualMode(visual);
   };
 
   // Rule operations: Edit, Delete, Move (priority adjustments)
@@ -806,26 +797,85 @@ export function SettingsPanel({
     setRulesMessage(null);
     setRulesError(null);
 
-    let contentToSave = rulesRaw;
-    if (isVisualMode) {
-      contentToSave = stringifyRulesToml(rulesList);
-      setRulesRaw(contentToSave);
-    }
-
     try {
-      // Validate that it parses as correct TOML in backend
-      await invoke("cmd_save_rules_raw", { content: contentToSave });
-      
-      // Parse again locally just to keep list perfectly in sync
-      const parsed = parseRulesToml(contentToSave);
-      setRulesList(parsed);
-
-      setRulesMessage({ ok: true, text: "Blueprint rules saved successfully!" });
+      if (isVisualMode) {
+        // Granular backend write: preserves header comments and any fields
+        // the form can't model; comments on unchanged rules survive too.
+        await invoke("cmd_rules_set_all", { rules: rulesList });
+      } else {
+        // Raw mode: validated verbatim write, full fidelity.
+        await invoke("cmd_save_rules_raw", { content: rulesRaw });
+      }
+      await loadRules();
+      setRulesMessage({ ok: true, text: "Classification rules saved successfully!" });
     } catch (err) {
       setRulesError(`Failed saving configuration: ${err}`);
       setRulesMessage({ ok: false, text: "Failed to persist changes." });
     } finally {
       setSavingRules(false);
+      setTimeout(() => setRulesMessage(null), 4000);
+    }
+  };
+
+  // Test-a-path state & handler
+  const [testPath, setTestPath] = useState("");
+  const [testResult, setTestResult] = useState<{ category: string; reason: string } | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+
+  const handleTestPath = async () => {
+    setTestResult(null);
+    setTestError(null);
+    if (!testPath.trim()) return;
+    try {
+      const result = await invoke<{ category: string; reason: string }>("cmd_rules_test", {
+        path: testPath.trim(),
+      });
+      setTestResult(result);
+    } catch (err) {
+      setTestError(`${err}`);
+    }
+  };
+
+  // Export / import via native file dialogs
+  const handleExportRules = async () => {
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const dest = await save({
+        defaultPath: "projm-rules.toml",
+        filters: [{ name: "TOML", extensions: ["toml"] }],
+      });
+      if (!dest) return;
+      await invoke("cmd_rules_export", { dest });
+      setRulesMessage({ ok: true, text: `Exported rules to ${dest}` });
+    } catch (err) {
+      setRulesMessage({ ok: false, text: `Export failed: ${err}` });
+    } finally {
+      setTimeout(() => setRulesMessage(null), 4000);
+    }
+  };
+
+  const handleImportRules = async (replace: boolean) => {
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const src = await open({
+        multiple: false,
+        filters: [{ name: "TOML", extensions: ["toml"] }],
+      });
+      if (!src || typeof src !== "string") return;
+      const report = await invoke<{ added: number; skipped_duplicates: number; replaced: boolean }>(
+        "cmd_rules_import",
+        { src, replace },
+      );
+      await loadRules();
+      setRulesMessage({
+        ok: true,
+        text: report.replaced
+          ? `Replaced rules file (${report.added} rules)`
+          : `Imported ${report.added} rules, skipped ${report.skipped_duplicates} duplicates`,
+      });
+    } catch (err) {
+      setRulesMessage({ ok: false, text: `Import failed: ${err}` });
+    } finally {
       setTimeout(() => setRulesMessage(null), 4000);
     }
   };
@@ -1727,6 +1777,28 @@ export function SettingsPanel({
                       Custom classification rules — evaluated top to bottom inside ~/.config/projm/rules.toml
                     </p>
                   </div>
+                  <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/20 p-0.5">
+                    <button
+                      onClick={() => handleToggleRulesMode(true)}
+                      className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${
+                        isVisualMode
+                          ? "bg-primary/20 text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Visual
+                    </button>
+                    <button
+                      onClick={() => handleToggleRulesMode(false)}
+                      className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${
+                        !isVisualMode
+                          ? "bg-primary/20 text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Raw TOML
+                    </button>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
                   {rulesError && (
@@ -1768,6 +1840,26 @@ export function SettingsPanel({
                                   <span className="text-[10px] text-muted-foreground italic">
                                     (Evaluates {idx === 0 ? "first" : "next"})
                                   </span>
+                                  {rule.enabled === false && (
+                                    <Badge className="bg-amber-500/10 text-amber-400 text-[9px] border border-amber-500/20">
+                                      disabled
+                                    </Badge>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      const updated = [...rulesList];
+                                      updated[idx] = {
+                                        ...updated[idx],
+                                        enabled: rule.enabled === false ? undefined : false,
+                                      };
+                                      if (updated[idx].enabled === undefined) delete updated[idx].enabled;
+                                      setRulesList(updated);
+                                    }}
+                                    className="text-[9px] text-muted-foreground hover:text-foreground underline decoration-dotted"
+                                    title={rule.enabled === false ? "Enable this rule" : "Disable without deleting"}
+                                  >
+                                    {rule.enabled === false ? "enable" : "disable"}
+                                  </button>
                                 </div>
 
                                 <div className="flex items-center gap-1.5">
@@ -1799,6 +1891,20 @@ export function SettingsPanel({
                                 </div>
                               </div>
 
+                              {/* Complex rules (OR/NOT groups, list matchers) are raw-mode only */}
+                              {isComplexRule(rule) ? (
+                                <div className="space-y-2">
+                                  <p className="text-[10px] font-mono text-muted-foreground leading-relaxed break-all">
+                                    {summarizeComplexRule(rule)}
+                                  </p>
+                                  <p className="text-[10px] text-amber-400/80 italic">
+                                    Uses advanced matchers (any_of / none_of / lists) — switch to Raw
+                                    TOML mode to edit. Category:{" "}
+                                    <span className="font-semibold not-italic text-primary">{rule.category}</span>
+                                  </p>
+                                </div>
+                              ) : (
+                              <>
                               {/* Rule Matching Fields */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                                 <div className="space-y-1">
@@ -1858,6 +1964,66 @@ export function SettingsPanel({
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                                    Folder Name Glob
+                                  </label>
+                                  <Input
+                                    value={rule.name_glob || ""}
+                                    onChange={(e) => handleUpdateRuleField(idx, "name_glob", e.target.value)}
+                                    placeholder="e.g. *-api"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50 font-mono"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                                    Folder Name Regex
+                                  </label>
+                                  <Input
+                                    value={rule.name_regex || ""}
+                                    onChange={(e) => handleUpdateRuleField(idx, "name_regex", e.target.value)}
+                                    placeholder="e.g. ^svc-[0-9]+$"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50 font-mono"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                                    Parent Directory Name
+                                  </label>
+                                  <Input
+                                    value={rule.parent_dir || ""}
+                                    onChange={(e) => handleUpdateRuleField(idx, "parent_dir", e.target.value)}
+                                    placeholder="e.g. clients"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50 font-mono"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                                    Full Path Glob
+                                  </label>
+                                  <Input
+                                    value={rule.path_glob || ""}
+                                    onChange={(e) => handleUpdateRuleField(idx, "path_glob", e.target.value)}
+                                    placeholder="e.g. **/experiments/**"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50 font-mono"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                                    Detected Stack
+                                  </label>
+                                  <Dropdown
+                                    className="w-full"
+                                    triggerClassName="h-8 px-2.5 text-xs font-mono"
+                                    mono
+                                    value={rule.stack || ""}
+                                    onChange={(v) => handleUpdateRuleField(idx, "stack", v)}
+                                    options={[
+                                      { value: "", label: "(any stack)", className: "italic text-muted-foreground" },
+                                      ...KNOWN_STACKS.map((s) => ({ value: s, label: s })),
+                                    ]}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                                     Destination Category Folder
                                   </label>
                                   <Dropdown
@@ -1880,7 +2046,20 @@ export function SettingsPanel({
                                     ]}
                                   />
                                 </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                                    Description (Optional Note)
+                                  </label>
+                                  <Input
+                                    value={rule.description || ""}
+                                    onChange={(e) => handleUpdateRuleField(idx, "description", e.target.value)}
+                                    placeholder="e.g. All client microservices"
+                                    className="h-8 text-xs bg-background/40 border-border focus-visible:ring-1 focus-visible:ring-ring/50"
+                                  />
+                                </div>
                               </div>
+                              </>
+                              )}
                             </div>
                           ))
                         )}
@@ -1951,10 +2130,74 @@ export function SettingsPanel({
                     </div>
                   )}
 
+                  {/* Test a path against the current rules */}
+                  <div className="pt-4 border-t border-border space-y-2">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Test a Project Path
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={testPath}
+                        onChange={(e) => {
+                          setTestPath(e.target.value);
+                          setTestResult(null);
+                          setTestError(null);
+                        }}
+                        onKeyDown={(e) => e.key === "Enter" && handleTestPath()}
+                        placeholder="/path/to/some/project"
+                        className="h-8 text-xs bg-background/40 border-border font-mono flex-1"
+                      />
+                      <Button
+                        onClick={handleTestPath}
+                        disabled={!testPath.trim()}
+                        variant="ghost"
+                        className="h-8 text-xs text-primary border border-border rounded-lg px-3"
+                      >
+                        Test
+                      </Button>
+                    </div>
+                    {testResult && (
+                      <div className="flex items-center gap-2 text-xs p-2.5 bg-muted/20 border border-border rounded-lg">
+                        <Badge className="bg-primary/15 text-primary border border-primary/20 capitalize">
+                          {testResult.category}
+                        </Badge>
+                        <span className="text-muted-foreground font-mono text-[10px]">{testResult.reason}</span>
+                      </div>
+                    )}
+                    {testError && (
+                      <p className="text-[10px] text-rose-400 font-mono">{testError}</p>
+                    )}
+                  </div>
+
+                  {/* Share rule packs */}
+                  <div className="pt-4 border-t border-border flex items-center gap-2">
+                    <Button
+                      onClick={handleExportRules}
+                      variant="ghost"
+                      className="h-8 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3"
+                    >
+                      Export Rules…
+                    </Button>
+                    <Button
+                      onClick={() => handleImportRules(false)}
+                      variant="ghost"
+                      className="h-8 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3"
+                    >
+                      Import (Merge)…
+                    </Button>
+                    <Button
+                      onClick={() => handleImportRules(true)}
+                      variant="ghost"
+                      className="h-8 text-xs text-rose-400/80 hover:text-rose-400 border border-border rounded-lg px-3"
+                    >
+                      Import (Replace)…
+                    </Button>
+                  </div>
+
                   {rulesMessage && (
                     <div className={`p-3 rounded-lg border text-xs flex items-center gap-2 animate-in slide-in-from-bottom-2 ${
-                      rulesMessage.ok 
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                      rulesMessage.ok
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                         : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                     }`}>
                       {rulesMessage.ok ? (

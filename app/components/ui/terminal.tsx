@@ -14,6 +14,12 @@ interface TerminalViewProps {
   onReady?: () => void;
   /** Fired when the shell exits on its own (e.g. the user typed `exit`). */
   onExit?: () => void;
+  /**
+   * Fired when the shell reports a directory change via OSC 7 (emitted by the
+   * projm shell-integration scripts on every prompt). Parents can use it to
+   * label tabs or spawn siblings in the same directory.
+   */
+  onCwdChange?: (cwd: string) => void;
 }
 
 export default function TerminalView({
@@ -21,6 +27,7 @@ export default function TerminalView({
   sessionId,
   onReady,
   onExit,
+  onCwdChange,
 }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -30,9 +37,11 @@ export default function TerminalView({
   // Keep callbacks in refs so their identity never re-runs the init effect.
   const onReadyRef = useRef(onReady);
   const onExitRef = useRef(onExit);
+  const onCwdChangeRef = useRef(onCwdChange);
   useEffect(() => {
     onReadyRef.current = onReady;
     onExitRef.current = onExit;
+    onCwdChangeRef.current = onCwdChange;
   });
 
   useEffect(() => {
@@ -104,7 +113,33 @@ export default function TerminalView({
       term.loadAddon(new Unicode11Addon());
       term.unicode.activeVersion = "11";
 
+      // OSC 7: the shell-integration scripts report cwd as a file:// URI on
+      // every prompt — track it without parsing prompt text.
+      term.parser.registerOscHandler(7, (data: string) => {
+        const m = data.match(/^file:\/\/[^/]*(\/.*)$/);
+        if (m) {
+          try {
+            onCwdChangeRef.current?.(decodeURIComponent(m[1]));
+          } catch {
+            onCwdChangeRef.current?.(m[1]);
+          }
+        }
+        return true;
+      });
+
       term.open(containerRef.current);
+
+      // GPU-accelerated renderer; falls back to the DOM renderer on context
+      // loss or when WebGL is unavailable in the webview.
+      try {
+        const { WebglAddon } = await import("@xterm/addon-webgl");
+        const webgl = new WebglAddon();
+        webgl.onContextLoss(() => webgl.dispose());
+        term.loadAddon(webgl);
+      } catch (err) {
+        console.warn("WebGL renderer unavailable, using DOM renderer", err);
+      }
+
       fitAddon.fit();
 
       termRef.current = term;

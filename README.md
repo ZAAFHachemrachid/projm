@@ -2,7 +2,7 @@
 
 Project organizer and navigator for developers. Scans a directory, classifies projects by stack, groups related ones by name prefix, and lets you fuzzy-jump to any project and open it in your editor — all from the terminal.
 
-![version](https://img.shields.io/badge/version-0.8.2-blue)
+![version](https://img.shields.io/badge/version-0.9.0-blue)
 
 ## Install
 
@@ -127,6 +127,11 @@ projm status --dirty
 
 # Machine-readable output for scripting
 projm status --json
+
+# Manage classification rules: list/add/remove/test/edit/export/import/pin/assign
+projm rules list
+projm rules test <path>      # explain how a path would classify and why
+projm rules pin --category ml  # pin the current dir via .projm.toml
 ```
 
 ## Desktop App
@@ -142,7 +147,7 @@ Prefer a GUI? `projm` also ships as a cross-platform desktop app built with [Tau
 
 ### Downloads
 
-Grab the latest installer for your platform from [GitHub Releases](https://github.com/ZAAFHachemrachid/projm/releases). Desktop builds are published under their own `desktop-v*` tags, separate from the CLI release tags.
+Grab the latest installer for your platform from [GitHub Releases](https://github.com/ZAAFHachemrachid/projm/releases). CLI binaries and desktop bundles ship together in each `v*` release.
 
 | Platform | Installer                                    |
 | -------- | -------------------------------------------- |
@@ -426,11 +431,63 @@ category = "ml"
 Evaluation order:
 
 ```
-1. rules.toml       ← your custom rules (highest priority)
-2. built-in logic   ← everything else
+1. .projm.toml pin  ← per-project marker inside the repo (highest priority)
+2. rules.toml       ← your custom rules
+3. built-in logic   ← everything else
 ```
 
 > **Tip:** `doc-lab.md` is just a built-in rule. You can replicate its behaviour for any marker via `marker = "doc-lab.md"` with the highest position in your rules file.
+
+#### Rules engine v2
+
+Rules support much richer matching — all fields optional, AND-combined, first match wins:
+
+```toml
+[[rule]]
+description = "API microservices, except legacy ones"
+enabled     = true                    # false keeps the rule but skips it
+priority    = 10                      # lower runs first (optional)
+name_glob   = "*-api"                 # glob on the directory name
+name_regex  = "^svc-[0-9]+$"          # or a regex
+parent_dir  = "clients"               # immediate parent directory name
+path_glob   = "**/experiments/**"     # glob on the full path
+markers     = ["Dockerfile", "fly.toml"]   # ALL must exist
+any_marker  = ["justfile", "Makefile"]     # at least ONE must exist
+has_deps    = ["react", "vite"]            # ALL deps must be present
+dep_version = { name = "react", req = ">=18" }  # semver check
+stack       = "rust"                  # detected stack (rust, js, tauri, go, …)
+none_of     = [ { name_contains = "legacy" } ]  # NOT — rule fails if any matches
+any_of      = [ { name_glob = "*-api" }, { marker = "rocket.toml" } ]  # OR groups
+category    = "services"
+```
+
+#### Managing rules from the CLI
+
+```bash
+projm rules list                                  # show rules in evaluation order
+projm rules add --name-glob "*-api" -c services   # add a rule from flags
+projm rules remove 2                              # remove by index (or name value)
+projm rules test ~/src/my-project                 # explain how a path classifies & why
+projm rules edit                                  # open rules.toml in $EDITOR (validated)
+projm rules export team-pack.toml                 # share a rule pack
+projm rules import team-pack.toml                 # merge (dedups); --replace to overwrite
+projm rules pin ~/src/trainer --category ml       # pin via .projm.toml (travels with repo)
+projm rules assign                                # interactive: pick project → category
+```
+
+#### Per-project pin (`.projm.toml`)
+
+Drop a `.projm.toml` in a project to pin its category — it wins over every rule
+and travels with the repo. It shares the file with the `[run]` config:
+
+```toml
+category = "ml"          # pins classification
+group    = "drivetrack"  # optional: force a group folder
+hidden   = false         # optional: hide from listings
+
+[run]
+command = "cargo run"    # existing run override still works
+```
 
 ---
 

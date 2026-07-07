@@ -93,7 +93,7 @@ pub fn run_with_base(dir: &Path, base: &Path, dry_run: bool) -> Result<()> {
     let moves: Vec<Move> = classified
         .into_iter()
         .map(|(src, name, cat)| {
-            let (dest, group) = resolve_dest(base, &name, &cat, &prefix_count);
+            let (dest, group) = resolve_dest_for(&src, base, &name, &cat, &prefix_count);
             Move {
                 src,
                 dest,
@@ -240,6 +240,22 @@ pub fn resolve_dest(
     (base.join(cat.dir_name()).join(name), None)
 }
 
+/// Like `resolve_dest`, but a `group` pinned in the project's `.projm.toml`
+/// marker overrides the prefix-derived group folder.
+fn resolve_dest_for(
+    src: &Path,
+    base: &Path,
+    name: &str,
+    cat: &Category,
+    prefix_count: &HashMap<String, usize>,
+) -> (PathBuf, Option<String>) {
+    if let Some(group) = crate::marker::read_marker(src).and_then(|m| m.group) {
+        let dest = base.join(cat.dir_name()).join(&group).join(name);
+        return (dest, Some(group));
+    }
+    resolve_dest(base, name, cat, prefix_count)
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn do_move(src: &Path, dest: &Path) -> Result<()> {
@@ -280,9 +296,10 @@ pub fn organize_single(src: &Path) -> Result<PathBuf> {
     let custom_rules = crate::rules::load_rules();
     let cat = classify::classify(src, &custom_rules).coerce_to_active();
 
-    // Resolve destination without grouping (empty prefix_count)
+    // Resolve destination without prefix grouping (empty prefix_count);
+    // a marker-pinned group still applies.
     let prefix_count = HashMap::new();
-    let (dest, _) = resolve_dest(&base, &name, &cat, &prefix_count);
+    let (dest, _) = resolve_dest_for(src, &base, &name, &cat, &prefix_count);
 
     if src == dest {
         return Ok(dest);

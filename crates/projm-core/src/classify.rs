@@ -177,24 +177,91 @@ pub fn prefix_key(name: &str) -> Option<String> {
 
 // ── Classification logic ──────────────────────────────────────────────────────
 
-pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category {
-    // --- 1. Custom rules.toml (First match wins) ---
-    for rule in rules {
-        if rule.matches(path) {
-            return rule.category.clone();
+/// Why a project ended up in its category.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ClassificationSource {
+    /// Pinned by a `.projm.toml` marker inside the project.
+    ProjectMarker,
+    /// Matched a custom rule from rules.toml (1-based index).
+    Rule {
+        index: usize,
+        description: Option<String>,
+    },
+    /// Decided by a built-in heuristic.
+    Heuristic(&'static str),
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Classification {
+    pub category: Category,
+    pub source: ClassificationSource,
+}
+
+impl Classification {
+    fn heuristic(category: Category, label: &'static str) -> Self {
+        Self {
+            category,
+            source: ClassificationSource::Heuristic(label),
         }
+    }
+
+    /// Human-readable reason, e.g. for `projm rules test` output.
+    pub fn reason(&self) -> String {
+        match &self.source {
+            ClassificationSource::ProjectMarker => {
+                format!("pinned by {}", crate::marker::MARKER_FILE)
+            }
+            ClassificationSource::Rule { index, description } => match description {
+                Some(d) => format!("matched rule #{} ({})", index, d),
+                None => format!("matched rule #{}", index),
+            },
+            ClassificationSource::Heuristic(h) => format!("no rule matched; heuristic: {}", h),
+        }
+    }
+}
+
+pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category {
+    classify_explained(path, rules).category
+}
+
+pub fn classify_explained(
+    path: &Path,
+    rules: &[crate::rules::ValidatedRule],
+) -> Classification {
+    use Classification as C;
+
+    // --- 0. Per-project marker pin (travels with the repo, beats everything) ---
+    if let Some(marker) = crate::marker::read_marker(path) {
+        if let Some(cat) = marker.category {
+            return C {
+                category: cat.into(),
+                source: ClassificationSource::ProjectMarker,
+            };
+        }
+    }
+
+    // --- 1. Custom rules.toml (First match wins) ---
+    if let Some(rule) = crate::rules::evaluate_rules(path, rules) {
+        return C {
+            category: rule.category.clone(),
+            source: ClassificationSource::Rule {
+                index: rule.index,
+                description: rule.description.clone(),
+            },
+        };
     }
 
     let has = |f: &str| path.join(f).exists();
 
     // ── doc-lab.md is the explicit labs marker — highest priority ──────────
     if has("doc-lab.md") {
-        return Category::Labs;
+        return C::heuristic(Category::Labs, "doc-lab.md marker");
     }
 
     // ── Monorepos (Turborepo, pnpm workspaces, etc.) ──────────────────────────
     if is_monorepo(path) {
-        return Category::Apps;
+        return C::heuristic(Category::Apps, "monorepo");
     }
 
     let has_cargo = has("Cargo.toml");
@@ -213,54 +280,58 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
     if let Some((_prefix, suffix)) = name_lower.as_deref().and_then(split_suffix) {
         // suffix is already lowercase because name_lower is lowercased
         match suffix {
-            "fw" => return Category::Embedded,
-            "mob" | "mobile" => return Category::Ui,
-            "web" | "ui" => return Category::Ui,
+            "fw" => return C::heuristic(Category::Embedded, "suffix: fw"),
+            "mob" | "mobile" => return C::heuristic(Category::Ui, "suffix: mobile"),
+            "web" | "ui" => return C::heuristic(Category::Ui, "suffix: web/ui"),
             "api" | "core" | "backend" | "server" => {
                 if !(has_tauri || (has_cargo && has_pkg)) {
-                    return Category::Services;
+                    return C::heuristic(Category::Services, "suffix: api/core/backend/server");
                 }
             }
-            "frontend" | "client" | "landing" | "dashboard" => return Category::Ui,
-            "mono" | "desktop" | "desk" => return Category::Apps,
+            "frontend" | "client" | "landing" | "dashboard" => {
+                return C::heuristic(Category::Ui, "suffix: frontend/client/landing/dashboard")
+            }
+            "mono" | "desktop" | "desk" => {
+                return C::heuristic(Category::Apps, "suffix: mono/desktop")
+            }
             _ => {}
         }
     }
 
     // ── Embedded: memory.x, openocd, Cargo cross-compile target, or C/C++ embedded ──────────
     if has_mem_x || has_openocd || is_embedded_cargo(path) || is_c_cpp_embedded(path) {
-        return Category::Embedded;
+        return C::heuristic(Category::Embedded, "embedded markers");
     }
 
     // ── Full-stack / Tauri desktop app ───────────────────────────────────────
     if has_tauri || (has_cargo && has_pkg) {
-        return Category::Apps;
+        return C::heuristic(Category::Apps, "stack: tauri / rust+js full-stack");
     }
 
     // ── Flutter / Dart ───────────────────────────────────────────────────────
     if has("pubspec.yaml") {
         if path.join("android").exists() || path.join("ios").exists() {
-            return Category::Apps;
+            return C::heuristic(Category::Apps, "stack: flutter (mobile)");
         }
-        return Category::Ui;
+        return C::heuristic(Category::Ui, "stack: flutter");
     }
 
     // ── Kotlin / Android & Spring Boot ───────────────────────────────────────
     if has("build.gradle") || has("build.gradle.kts") {
         if has_android_manifest(path) {
-            return Category::Apps;
+            return C::heuristic(Category::Apps, "stack: android");
         }
-        return Category::Services;
+        return C::heuristic(Category::Services, "stack: gradle");
     }
 
     // ── Java / Maven ─────────────────────────────────────────────────────────
     if has("pom.xml") {
-        return Category::Services;
+        return C::heuristic(Category::Services, "stack: maven");
     }
 
     // ── Swift / iOS / macOS ──────────────────────────────────────────────────
     if has_ext(path, "xcodeproj") || has("Package.swift") {
-        return Category::Apps;
+        return C::heuristic(Category::Apps, "stack: swift");
     }
 
     // ── Go ───────────────────────────────────────────────────────────────────
@@ -271,24 +342,24 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
             .to_string_lossy()
             .to_lowercase();
         if name.contains("cli") || name.contains("tool") || name.contains("util") {
-            return Category::Tools;
+            return C::heuristic(Category::Tools, "stack: go + tool-like name");
         }
-        return Category::Services;
+        return C::heuristic(Category::Services, "stack: go");
     }
 
     // ── Ruby on Rails ────────────────────────────────────────────────────────
     if has("Gemfile") && path.join("config/routes.rb").exists() {
-        return Category::Services;
+        return C::heuristic(Category::Services, "stack: rails");
     }
 
     // ── Laravel / PHP ────────────────────────────────────────────────────────
     if has("composer.json") && has("artisan") {
-        return Category::Services;
+        return C::heuristic(Category::Services, "stack: laravel");
     }
 
     // ── Elixir / Phoenix ─────────────────────────────────────────────────────
     if has("mix.exs") {
-        return Category::Services;
+        return C::heuristic(Category::Services, "stack: elixir");
     }
 
     // ── C# / .NET ────────────────────────────────────────────────────────────
@@ -303,14 +374,14 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
             || name.contains("desktop")
             || name.contains("mobile")
         {
-            return Category::Apps;
+            return C::heuristic(Category::Apps, "stack: dotnet + app-like name");
         }
-        return Category::Services;
+        return C::heuristic(Category::Services, "stack: dotnet");
     }
 
     // ── C / C++ Native (Non-embedded) ────────────────────────────────────────
     if has("CMakeLists.txt") {
-        return Category::Tools;
+        return C::heuristic(Category::Tools, "stack: cpp");
     }
 
     // ── Python: ML pipeline or tool ─────────────────────────────────────────
@@ -325,23 +396,27 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
             "checkpoints",
         ];
         if ml_markers.iter().any(|m| path.join(m).exists()) {
-            return Category::Ml;
+            return C::heuristic(Category::Ml, "stack: python + ml markers");
         }
-        return Category::Tools;
+        return C::heuristic(Category::Tools, "stack: python");
     }
 
     // ── Pure JS/TS: read package.json to know the truth ─────────────────────
     if has_pkg && !has_cargo {
         match read_pkg_kind(path) {
-            PkgKind::Frontend => return Category::Ui,
-            PkgKind::Backend => return Category::Services,
-            PkgKind::Fullstack => return Category::Apps,
+            PkgKind::Frontend => return C::heuristic(Category::Ui, "package.json: frontend deps"),
+            PkgKind::Backend => {
+                return C::heuristic(Category::Services, "package.json: backend deps")
+            }
+            PkgKind::Fullstack => {
+                return C::heuristic(Category::Apps, "package.json: fullstack deps")
+            }
             PkgKind::Unknown => {
                 // fall back to dir-name heuristic
                 if has("server") || has("backend") || has("api") {
-                    return Category::Apps;
+                    return C::heuristic(Category::Apps, "js + server/backend/api dir");
                 }
-                return Category::Ui;
+                return C::heuristic(Category::Ui, "stack: js");
             }
         }
     }
@@ -354,12 +429,12 @@ pub fn classify(path: &Path, rules: &[crate::rules::ValidatedRule]) -> Category 
             .to_string_lossy()
             .to_lowercase();
         if name.contains("cli") || name.contains("tool") || name.contains("util") {
-            return Category::Tools;
+            return C::heuristic(Category::Tools, "stack: rust + tool-like name");
         }
-        return Category::Services;
+        return C::heuristic(Category::Services, "stack: rust");
     }
 
-    Category::Labs
+    C::heuristic(Category::Labs, "default: labs")
 }
 
 // ── package.json classifier ──────────────────────────────────────────────────

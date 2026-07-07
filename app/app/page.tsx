@@ -21,7 +21,8 @@ import {
   ChevronRight,
   Sparkles,
   Layers,
-  Activity
+  Activity,
+  Tag
 } from "lucide-react";
 import RunnerPanel from "@/components/ui/runner-panel";
 import ProjectTabs from "@/components/project-tabs";
@@ -444,6 +445,43 @@ export default function WorkspacePage() {
   const [fileTreeProExpanded, setFileTreeProExpanded] = useState(false);
 
   // Load backend configurations and projects list
+  // ── Assign-category dialog state ──────────────────────────────────────────
+  const [assignTarget, setAssignTarget] = useState<ProjectItem | null>(null);
+  const [assignCategory, setAssignCategory] = useState("");
+  const [assignMode, setAssignMode] = useState<"marker" | "rule">("marker");
+  const [assignMove, setAssignMove] = useState(true);
+  const [assignBusy, setAssignBusy] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  function openAssignDialog(p: ProjectItem) {
+    setAssignTarget(p);
+    setAssignCategory(p.category);
+    setAssignMode("marker");
+    setAssignMove(true);
+    setAssignError(null);
+  }
+
+  async function handleAssignCategory() {
+    if (!assignTarget || !assignCategory) return;
+    setAssignBusy(true);
+    setAssignError(null);
+    try {
+      await invoke<string | null>("cmd_assign_category", {
+        path: assignTarget.path.toString(),
+        category: assignCategory,
+        mode: assignMode,
+        group: null,
+        moveProject: assignMove,
+      });
+      setAssignTarget(null);
+      await loadData();
+    } catch (err) {
+      setAssignError(`${err}`);
+    } finally {
+      setAssignBusy(false);
+    }
+  }
+
   async function loadData() {
     setLoading(true);
     try {
@@ -973,21 +1011,37 @@ export default function WorkspacePage() {
                             <span className="truncate">{p.name}</span>
                           </div>
 
-                          {/* Git branch & Dirty indicators */}
-                          {p.git_branch && (
-                            <div className="flex items-center gap-1 shrink-0 bg-card px-1 rounded-sm border border-border/10">
-                              <GitBranch className="size-2.5 text-muted-foreground" />
-                              <span className="text-[10px] text-muted-foreground font-sans truncate max-w-[50px]">
-                                {p.git_branch}
-                              </span>
-                              <span
-                                className={`w-1 h-1 rounded-full ${
-                                  p.git_dirty ? "bg-amber-400" : "bg-emerald-400"
-                                }`}
-                                title={p.git_dirty ? "Dirty changes" : "Clean repository"}
-                              />
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* Set category (hover) */}
+                            <span
+                              role="button"
+                              tabIndex={-1}
+                              title="Set category…"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAssignDialog(p);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-primary transition-all"
+                            >
+                              <Tag className="size-3" />
+                            </span>
+
+                            {/* Git branch & Dirty indicators */}
+                            {p.git_branch && (
+                              <div className="flex items-center gap-1 shrink-0 bg-card px-1 rounded-sm border border-border/10">
+                                <GitBranch className="size-2.5 text-muted-foreground" />
+                                <span className="text-[10px] text-muted-foreground font-sans truncate max-w-[50px]">
+                                  {p.git_branch}
+                                </span>
+                                <span
+                                  className={`w-1 h-1 rounded-full ${
+                                    p.git_dirty ? "bg-amber-400" : "bg-emerald-400"
+                                  }`}
+                                  title={p.git_dirty ? "Dirty changes" : "Clean repository"}
+                                />
+                              </div>
+                            )}
+                          </div>
                         </button>
                       );
                     })
@@ -1392,8 +1446,23 @@ export default function WorkspacePage() {
                                 ))}
                               </div>
                               
-                              {/* Category Badge */}
-                              <span className={`text-[8px] px-1.5 py-0.2 rounded font-mono font-bold capitalize border ${meta.color} ${meta.bg} ${meta.border}`}>
+                              {/* Category Badge — click to reassign */}
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                title="Set category…"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openAssignDialog(p);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.stopPropagation();
+                                    openAssignDialog(p);
+                                  }
+                                }}
+                                className={`text-[8px] px-1.5 py-0.2 rounded font-mono font-bold capitalize border cursor-pointer hover:ring-1 hover:ring-primary/40 ${meta.color} ${meta.bg} ${meta.border}`}
+                              >
                                 {p.category}
                               </span>
                               
@@ -1457,6 +1526,114 @@ export default function WorkspacePage() {
           <div className="absolute inset-0 z-40 bg-background overflow-y-auto">
             <div className="p-6 lg:p-8 max-w-3xl mx-auto">
               <ScanPanel onClose={() => setOverlay(null)} />
+            </div>
+          </div>
+        )}
+
+        {/* ── Assign Category Dialog ── */}
+        {assignTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+              <div className="p-4 border-b border-border/20 flex items-center gap-2">
+                <Tag className="size-4 text-primary" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-foreground">Set category</span>
+                  <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[260px]">
+                    {assignTarget.name}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 flex flex-col gap-4">
+                {/* Category picker */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Category
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setAssignCategory(cat.id)}
+                        className={`px-2 py-1 rounded-md text-[10px] font-mono capitalize border transition-all ${
+                          assignCategory === cat.id
+                            ? "bg-primary/15 text-primary border-primary/40"
+                            : "bg-muted/20 text-muted-foreground border-border hover:text-foreground"
+                        }`}
+                      >
+                        {cat.id}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Persist method */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Save as
+                  </label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="flex items-start gap-2 text-xs cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={assignMode === "marker"}
+                        onChange={() => setAssignMode("marker")}
+                        className="mt-0.5 accent-[var(--primary)]"
+                      />
+                      <span className="flex flex-col">
+                        <span className="text-foreground">Pin with .projm.toml</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Travels with the repo; overrides all rules
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-xs cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={assignMode === "rule"}
+                        onChange={() => setAssignMode("rule")}
+                        className="mt-0.5 accent-[var(--primary)]"
+                      />
+                      <span className="flex flex-col">
+                        <span className="text-foreground">Add global exact-name rule</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Stored in rules.toml, evaluated first
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={assignMove}
+                    onChange={(e) => setAssignMove(e.target.checked)}
+                    className="accent-[var(--primary)]"
+                  />
+                  <span className="text-foreground">Move project folder now</span>
+                </label>
+
+                {assignError && (
+                  <p className="text-[10px] text-rose-400 font-mono break-all">{assignError}</p>
+                )}
+              </div>
+
+              <div className="p-3 border-t border-border/20 flex justify-end gap-2">
+                <button
+                  onClick={() => setAssignTarget(null)}
+                  className="text-xs px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAssignCategory}
+                  disabled={assignBusy || !assignCategory}
+                  className="text-xs px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-foreground font-semibold disabled:opacity-50 transition-all"
+                >
+                  {assignBusy ? "Applying…" : "Apply"}
+                </button>
+              </div>
             </div>
           </div>
         )}

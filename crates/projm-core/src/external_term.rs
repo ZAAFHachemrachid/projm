@@ -85,6 +85,16 @@ fn open_terminal_at_impl(
 
     let mut cmd = Command::new(&terminal);
     cmd.args(args_for(&terminal, path));
+    // An emulator launched from an AppImage build must not inherit the bundle
+    // env — its shells would get broken LD_LIBRARY_PATH/rustup proxies.
+    if let Some(fix) = crate::env_hygiene::appimage_env_fix() {
+        for key in &fix.remove {
+            cmd.env_remove(key);
+        }
+        for (key, value) in &fix.set {
+            cmd.env(key, value);
+        }
+    }
     spawn_detached_unix(cmd, path)?;
     Ok(terminal)
 }

@@ -14,7 +14,7 @@ use crate::config;
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PackageManager {
+pub enum PackageManager {
     Bun,
     Pnpm,
     Yarn,
@@ -22,7 +22,7 @@ enum PackageManager {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ProjectStack {
+pub enum ProjectStack {
     Rust,
     Js { pm: PackageManager },
     Tauri { pm: PackageManager },
@@ -38,6 +38,34 @@ enum ProjectStack {
     Cpp,
     Dotnet,
     Unknown,
+}
+
+/// Stack identifiers accepted by the `stack` field in classification rules.
+pub const KNOWN_STACK_IDS: &[&str] = &[
+    "rust", "js", "tauri", "flutter", "go", "python", "rails", "elixir", "gradle", "maven",
+    "laravel", "cpp", "dotnet",
+];
+
+impl ProjectStack {
+    /// Stable string id for this stack (both Python variants map to "python").
+    pub fn id(&self) -> &'static str {
+        match self {
+            Self::Rust => "rust",
+            Self::Js { .. } => "js",
+            Self::Tauri { .. } => "tauri",
+            Self::Flutter => "flutter",
+            Self::Go => "go",
+            Self::PythonUv | Self::Python => "python",
+            Self::Rails => "rails",
+            Self::Elixir => "elixir",
+            Self::Gradle => "gradle",
+            Self::Maven => "maven",
+            Self::Laravel => "laravel",
+            Self::Cpp => "cpp",
+            Self::Dotnet => "dotnet",
+            Self::Unknown => "unknown",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -366,7 +394,7 @@ fn pick_workspace_target(tool: &MonorepoTool, packages: &[String]) -> Result<Opt
 
 // ── Stack detection ────────────────────────────────────────────────────────────
 
-fn detect_stack(path: &Path) -> ProjectStack {
+pub fn detect_stack(path: &Path) -> ProjectStack {
     let has = |f: &str| path.join(f).exists();
 
     // Tauri (Cargo.toml + package.json + src-tauri/)

@@ -2,6 +2,7 @@ mod blueprints;
 mod completions;
 mod init_setup;
 mod main_cli;
+mod rules_cmd;
 
 use anyhow::Result;
 use clap::Parser;
@@ -26,6 +27,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Commands::Blueprint { sub } => blueprints::run(sub),
+        Commands::Rules { sub } => rules_cmd::run(sub),
         Commands::Check => projm_core::check::run(),
         Commands::Run {
             path_or_query,

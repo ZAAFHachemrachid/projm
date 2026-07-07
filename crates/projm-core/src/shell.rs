@@ -39,8 +39,34 @@ fn explicit_shell(pref: Option<&str>, available: &dyn Fn(&str) -> bool) -> Optio
     available(p).then(|| p.to_string())
 }
 
+/// The user's login shell from the passwd database. More reliable than
+/// `$SHELL` for GUI-launched apps, where the environment may be minimal or
+/// inherited from a launcher rather than a login session.
+#[cfg(unix)]
+pub fn login_shell() -> Option<String> {
+    use std::ffi::CStr;
+    unsafe {
+        let pw = libc::getpwuid(libc::getuid());
+        if pw.is_null() {
+            return None;
+        }
+        let shell_ptr = (*pw).pw_shell;
+        if shell_ptr.is_null() {
+            return None;
+        }
+        CStr::from_ptr(shell_ptr)
+            .to_str()
+            .ok()
+            .filter(|s| !s.is_empty() && std::path::Path::new(s).exists())
+            .map(String::from)
+    }
+}
+
 #[cfg(not(target_os = "windows"))]
 fn auto_shell() -> String {
+    if let Some(sh) = login_shell() {
+        return sh;
+    }
     if let Ok(sh) = std::env::var("SHELL") {
         let sh = sh.trim();
         if !sh.is_empty() && std::path::Path::new(sh).exists() {

@@ -105,6 +105,16 @@ fn build_command(app: &RunnableApp) -> Command {
     };
     cmd.current_dir(&app.dir);
     cmd.env("FORCE_COLOR", "0");
+    // Dev commands must not inherit the AppImage runtime env (breaks rustup
+    // proxies via ARGV0 and webkit2gtk child-process spawning).
+    if let Some(fix) = crate::env_hygiene::appimage_env_fix() {
+        for key in &fix.remove {
+            cmd.env_remove(key);
+        }
+        for (key, value) in &fix.set {
+            cmd.env(key, value);
+        }
+    }
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());

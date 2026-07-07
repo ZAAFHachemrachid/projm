@@ -1,5 +1,7 @@
 // Projm Tauri backend — desktop GUI for project organization and navigation.
 
+mod shell_init;
+
 use projm_core::runner::{self, process as runner_process};
 use projm_core::{agents, blueprints, check, classify, organize};
 use tauri::{AppHandle, Emitter, Manager};
@@ -9,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::io::{Read, Write};
 use std::time::Duration;
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use portable_pty::{native_pty_system, PtySize};
 
 // ── Types & Global State ──────────────────────────────────────────────────────
 
@@ -140,23 +142,16 @@ fn ensure_terminal(
         .map_err(|e| e.to_string())?;
 
     // Resolve the shell from the user's Settings choice (prefs.json), falling
-    // back to $SHELL / a probe list. Read fresh per spawn so a Settings change
-    // takes effect on the next terminal without an app restart.
+    // back to the login shell / $SHELL / a probe list. Read fresh per spawn so
+    // a Settings change takes effect on the next terminal without a restart.
     let shell_pref = projm_core::prefs::Prefs::load()
         .unwrap_or_default()
         .shell;
     let shell_path = projm_core::shell::resolve_shell(shell_pref.as_deref());
 
-    let mut cmd = CommandBuilder::new(&shell_path);
-    cmd.cwd(cwd);
-    // A GUI app launched from the desktop has no TERM in its environment, so a
-    // shell spawned here inherits none ("TERM environment variable not set").
-    // Without TERM, zsh's line editor (zle) and autosuggestions can't emit
-    // cursor-control sequences, so typed input and grey ghost suggestions get
-    // stuck on the line and can't be edited or deleted. The frontend renders the
-    // PTY via xterm.js, which advertises xterm-256color with truecolor.
-    cmd.env("TERM", "xterm-256color");
-    cmd.env("COLORTERM", "truecolor");
+    // Shell-integration spawn: TERM/locale env, OSC 7/133 hooks per shell,
+    // login-shell init, and the AppImage env scrub.
+    let cmd = shell_init::build_command(&shell_path, cwd);
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
 
@@ -529,6 +524,117 @@ fn cmd_get_rules_raw() -> Result<String, String> {
 #[tauri::command]
 fn cmd_save_rules_raw(content: String) -> Result<(), String> {
     projm_core::rules::save_rules_raw(&content)
+}
+
+// ── Rules v2 Commands (granular, comment-preserving) ─────────────────────────
+
+#[tauri::command]
+fn cmd_rules_list() -> Result<Vec<projm_core::rules::CustomRule>, String> {
+    projm_core::rules_edit::list_rules()
+}
+
+#[tauri::command]
+fn cmd_rules_add(rule: projm_core::rules::CustomRule, at: Option<usize>) -> Result<usize, String> {
+    projm_core::rules_edit::append_rule(&rule, at)
+}
+
+#[tauri::command]
+fn cmd_rules_set_all(rules: Vec<projm_core::rules::CustomRule>) -> Result<(), String> {
+    projm_core::rules_edit::set_all_rules(&rules)
+}
+
+#[tauri::command]
+fn cmd_rules_remove(index: usize) -> Result<(), String> {
+    projm_core::rules_edit::remove_rule(&projm_core::rules_edit::RuleSelector::Index(index))
+        .map(|_| ())
+}
+
+#[tauri::command]
+fn cmd_rules_test(path: String) -> Result<serde_json::Value, String> {
+    let path = std::path::PathBuf::from(&path);
+    if !path.is_dir() {
+        return Err(format!("{} is not a directory", path.display()));
+    }
+    let rules = projm_core::rules::load_rules();
+    let result = classify::classify_explained(&path, &rules);
+    Ok(serde_json::json!({
+        "category": result.category.dir_name(),
+        "reason": result.reason(),
+        "source": result.source,
+    }))
+}
+
+#[tauri::command]
+fn cmd_explain_classification(path: String) -> Result<serde_json::Value, String> {
+    cmd_rules_test(path)
+}
+
+#[tauri::command]
+fn cmd_rules_export(dest: String) -> Result<(), String> {
+    projm_core::rules_edit::export_rules(Some(std::path::Path::new(&dest))).map(|_| ())
+}
+
+#[tauri::command]
+fn cmd_rules_import(src: String, replace: bool) -> Result<serde_json::Value, String> {
+    let mode = if replace {
+        projm_core::rules_edit::ImportMode::Replace
+    } else {
+        projm_core::rules_edit::ImportMode::Merge
+    };
+    let report = projm_core::rules_edit::import_rules(std::path::Path::new(&src), mode)?;
+    serde_json::to_value(report).map_err(|e| e.to_string())
+}
+
+/// Assign a category to a project, either via a `.projm.toml` pin ("marker")
+/// or a global exact-name rule inserted at position 1 ("rule"). Optionally
+/// moves the folder to its new home; returns the new path if moved.
+#[tauri::command]
+fn cmd_assign_category(
+    path: String,
+    category: String,
+    mode: String,
+    group: Option<String>,
+    move_project: bool,
+) -> Result<Option<String>, String> {
+    let src = std::path::PathBuf::from(&path);
+    if !src.is_dir() {
+        return Err(format!("{} is not a directory", src.display()));
+    }
+
+    match mode.as_str() {
+        "marker" => {
+            let existing = projm_core::marker::read_marker(&src).unwrap_or_default();
+            let marker = projm_core::marker::ProjectMarker {
+                category: Some(category),
+                group: group.or(existing.group),
+                hidden: existing.hidden,
+            };
+            projm_core::marker::write_marker(&src, &marker)?;
+        }
+        "rule" => {
+            let name = src
+                .file_name()
+                .ok_or_else(|| "invalid project path".to_string())?
+                .to_string_lossy()
+                .to_string();
+            let rule = projm_core::rules::CustomRule {
+                matcher: projm_core::rules::RawMatcher {
+                    name: Some(name),
+                    ..Default::default()
+                },
+                category,
+                ..Default::default()
+            };
+            projm_core::rules_edit::append_rule(&rule, Some(1))?;
+        }
+        other => return Err(format!("unknown assign mode: {}", other)),
+    }
+
+    if move_project {
+        let dest = projm_core::organize::organize_single(&src).map_err(|e| e.to_string())?;
+        return Ok(Some(dest.to_string_lossy().to_string()));
+    }
+    Ok(None)
 }
 
 // ── Blueprint Commands ────────────────────────────────────────────────────────
@@ -1033,6 +1139,15 @@ pub fn run() {
             cmd_set_categories,
             cmd_get_rules_raw,
             cmd_save_rules_raw,
+            cmd_rules_list,
+            cmd_rules_add,
+            cmd_rules_set_all,
+            cmd_rules_remove,
+            cmd_rules_test,
+            cmd_explain_classification,
+            cmd_rules_export,
+            cmd_rules_import,
+            cmd_assign_category,
             cmd_get_blueprints,
             cmd_add_blueprint,
             cmd_update_blueprint,
