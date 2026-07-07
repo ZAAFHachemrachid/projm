@@ -28,6 +28,7 @@ import RunnerPanel from "@/components/ui/runner-panel";
 import ProjectTabs from "@/components/project-tabs";
 import { SettingsPanel } from "@/components/settings-panel";
 import { ScanPanel } from "@/components/scan-panel";
+import { AddProjectDialog } from "@/components/add-project-dialog";
 import {
   TooltipProvider,
   Tooltip,
@@ -433,6 +434,7 @@ export default function WorkspacePage() {
   const [overlay, setOverlay] = useState<
     { kind: "settings"; tab?: string } | { kind: "scan" } | null
   >(null);
+  const [showAddProject, setShowAddProject] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(true);
   const [projectsExpanded, setProjectsExpanded] = useState(true);
 
@@ -817,9 +819,23 @@ export default function WorkspacePage() {
           <div className="flex flex-col gap-3 items-center w-full">
             <Tooltip>
               <TooltipTrigger>
-                <button 
+                <button
+                  onClick={() => setShowAddProject(true)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <FolderPlus className="size-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <span className="font-medium text-foreground">Add Project</span>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger>
+                <button
                   onClick={loadData}
-                  className="text-muted-foreground hover:text-foreground transition-colors" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <RefreshCw className="size-4 animate-hover" />
                 </button>
@@ -856,7 +872,9 @@ export default function WorkspacePage() {
                 {config?.base ? config.base.split("/").pop() : "Workspace"}
               </span>
               <div className="flex items-center gap-1.5 text-muted-foreground">
-                <span title="New Folder"><FolderPlus className="size-3.5 hover:text-foreground cursor-pointer" /></span>
+                <button title="Add Project" onClick={() => setShowAddProject(true)}>
+                  <FolderPlus className="size-3.5 hover:text-foreground cursor-pointer" />
+                </button>
                 <span title="New File"><FilePlus className="size-3.5 hover:text-foreground cursor-pointer" /></span>
               </div>
             </div>
@@ -1528,6 +1546,19 @@ export default function WorkspacePage() {
               <ScanPanel onClose={() => setOverlay(null)} />
             </div>
           </div>
+        )}
+
+        {/* ── Add Project Dialog ── */}
+        {showAddProject && (
+          <AddProjectDialog
+            categories={categories}
+            base={config?.base}
+            onClose={() => setShowAddProject(false)}
+            onAdded={() => {
+              setShowAddProject(false);
+              loadData();
+            }}
+          />
         )}
 
         {/* ── Assign Category Dialog ── */}

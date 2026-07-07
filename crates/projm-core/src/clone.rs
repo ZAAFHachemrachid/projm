@@ -113,8 +113,28 @@ fn open_editor(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Main entry point for the `projm clone` subcommand.
-pub fn run(url: &str, name: Option<String>, branch: Option<String>, open: bool) -> Result<()> {
+/// Clone `url` into the organized tree and return the final project path.
+///
+/// `category` pins the project via `.projm.toml` before organizing so the
+/// classifier is bypassed; `None` lets classification decide. Git output is
+/// captured (not streamed) so callers — the GUI in particular — get the real
+/// stderr in the error instead of a bare exit status.
+pub fn clone_into_base(
+    url: &str,
+    name: Option<String>,
+    branch: Option<String>,
+    category: Option<String>,
+) -> Result<PathBuf> {
+    clone_impl(url, name, branch, category, false)
+}
+
+fn clone_impl(
+    url: &str,
+    name: Option<String>,
+    branch: Option<String>,
+    category: Option<String>,
+    stream_output: bool,
+) -> Result<PathBuf> {
     // 1. Verify Git installation
     check_git_installed()?;
 
@@ -149,8 +169,6 @@ pub fn run(url: &str, name: Option<String>, branch: Option<String>, open: bool) 
         );
     }
 
-    println!("  Cloning {} into temporary staging...", url.cyan());
-
     // 5. Create staging directory inside base to ensure fast rename operations
     let staging_root = tempfile::Builder::new()
         .prefix(".tmp_clone_")
@@ -167,21 +185,45 @@ pub fn run(url: &str, name: Option<String>, branch: Option<String>, open: bool) 
     }
     cmd.arg(url).arg(&staging_dir);
 
-    let status = cmd
-        .status()
-        .context("Failed to execute git clone command")?;
-    if !status.success() {
-        anyhow::bail!("git clone failed with exit status: {}", status);
+    if stream_output {
+        let status = cmd
+            .status()
+            .context("Failed to execute git clone command")?;
+        if !status.success() {
+            anyhow::bail!("git clone failed with exit status: {}", status);
+        }
+    } else {
+        let output = cmd
+            .output()
+            .context("Failed to execute git clone command")?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("git clone failed: {}", stderr.trim());
+        }
     }
 
-    println!(
-        "  {} Successfully cloned. Organizing project...",
-        "✓".green().bold()
-    );
+    // 7. Pin the requested category so organize honors it over the classifier
+    if let Some(cat) = category {
+        let existing = crate::marker::read_marker(&staging_dir).unwrap_or_default();
+        let marker = crate::marker::ProjectMarker {
+            category: Some(cat),
+            group: existing.group,
+            hidden: existing.hidden,
+        };
+        crate::marker::write_marker(&staging_dir, &marker)
+            .map_err(|e| anyhow::anyhow!("failed to write project marker: {}", e))?;
+    }
 
-    // 7. Organize staging folder into the destination
-    let dest_path = crate::organize::organize_single(&staging_dir)
-        .context("Failed to auto-organize cloned project")?;
+    // 8. Organize staging folder into the destination
+    crate::organize::organize_single(&staging_dir)
+        .context("Failed to auto-organize cloned project")
+}
+
+/// Main entry point for the `projm clone` subcommand.
+pub fn run(url: &str, name: Option<String>, branch: Option<String>, open: bool) -> Result<()> {
+    println!("  Cloning {} into temporary staging...", url.cyan());
+
+    let dest_path = clone_impl(url, name, branch, None, true)?;
 
     println!(
         "  {} Organized under category: {}",
@@ -189,7 +231,6 @@ pub fn run(url: &str, name: Option<String>, branch: Option<String>, open: bool) 
         dest_path.display().to_string().green()
     );
 
-    // 8. Launch editor if requested
     if open {
         open_editor(&dest_path)?;
     }

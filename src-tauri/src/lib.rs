@@ -637,6 +637,70 @@ fn cmd_assign_category(
     Ok(None)
 }
 
+/// The organized destination as `{path, category}` — category derived from the
+/// project's first path component under base.
+fn organized_result(dest: &std::path::Path) -> serde_json::Value {
+    let base = projm_core::config::load().base;
+    let category = dest
+        .strip_prefix(&base)
+        .ok()
+        .and_then(|rel| rel.components().next())
+        .map(|c| c.as_os_str().to_string_lossy().to_string())
+        .unwrap_or_default();
+    serde_json::json!({
+        "path": dest.to_string_lossy(),
+        "category": category,
+    })
+}
+
+/// Add an existing local folder to the organized tree. `category` pins it via
+/// `.projm.toml`; `None` lets the classifier decide. The folder is moved under
+/// `base/<category>/`. Returns `{path, category}` of the new home.
+#[tauri::command]
+async fn cmd_add_project(
+    path: String,
+    category: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        let src = std::path::PathBuf::from(&path);
+        if !src.is_dir() {
+            return Err(format!("{} is not a directory", src.display()));
+        }
+        if let Some(cat) = category {
+            let existing = projm_core::marker::read_marker(&src).unwrap_or_default();
+            let marker = projm_core::marker::ProjectMarker {
+                category: Some(cat),
+                group: existing.group,
+                hidden: existing.hidden,
+            };
+            projm_core::marker::write_marker(&src, &marker)?;
+        }
+        let dest = projm_core::organize::organize_single(&src).map_err(|e| e.to_string())?;
+        Ok(organized_result(&dest))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Clone a git repository into the organized tree. `name` overrides the name
+/// derived from the URL; `category` pins classification. Returns
+/// `{path, category}` of the new home.
+#[tauri::command]
+async fn cmd_clone_project(
+    url: String,
+    name: Option<String>,
+    branch: Option<String>,
+    category: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        let dest = projm_core::clone::clone_into_base(&url, name, branch, category)
+            .map_err(|e| e.to_string())?;
+        Ok(organized_result(&dest))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 // ── Blueprint Commands ────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -1148,6 +1212,8 @@ pub fn run() {
             cmd_rules_export,
             cmd_rules_import,
             cmd_assign_category,
+            cmd_add_project,
+            cmd_clone_project,
             cmd_get_blueprints,
             cmd_add_blueprint,
             cmd_update_blueprint,
