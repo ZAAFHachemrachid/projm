@@ -149,6 +149,14 @@ fn ensure_terminal(
 
     let mut cmd = CommandBuilder::new(&shell_path);
     cmd.cwd(cwd);
+    // A GUI app launched from the desktop has no TERM in its environment, so a
+    // shell spawned here inherits none ("TERM environment variable not set").
+    // Without TERM, zsh's line editor (zle) and autosuggestions can't emit
+    // cursor-control sequences, so typed input and grey ghost suggestions get
+    // stuck on the line and can't be edited or deleted. The frontend renders the
+    // PTY via xterm.js, which advertises xterm-256color with truecolor.
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("COLORTERM", "truecolor");
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
 
