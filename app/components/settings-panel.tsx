@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   FolderOpen,
@@ -299,6 +300,11 @@ export function SettingsPanel({
 
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
+  // Real app version from tauri.conf.json — single source of truth
+  const [version, setVersion] = useState("");
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => {});
+  }, []);
   const [baseDir, setBaseDir] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   
@@ -1987,7 +1993,7 @@ export function SettingsPanel({
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Active Build Version</span>
                     <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                      0.7.1
+                      {version}
                     </span>
                   </div>
                   <Separator className="bg-accent" />

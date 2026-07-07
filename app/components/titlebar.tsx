@@ -1,15 +1,19 @@
 "use client";
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
 import { Search, Sparkles, X, Minus, Square } from "lucide-react";
 
 export function Titlebar() {
   const [appWindow, setAppWindow] = useState<any>(null);
+  const [version, setVersion] = useState("");
 
   useEffect(() => {
     // Dynamically fetch window instance to prevent SSR errors
     setAppWindow(getCurrentWindow());
+    // Real app version from tauri.conf.json — single source of truth
+    getVersion().then(setVersion).catch(() => {});
   }, []);
 
   const handleSearchClick = () => {
@@ -37,7 +41,7 @@ export function Titlebar() {
           Projm
         </span>
         <span className="text-[9px] font-medium text-muted-foreground border border-border px-1.5 py-0.2 rounded bg-muted/30">
-          v1.0.0
+          {version ? `v${version}` : ""}
         </span>
       </div>
 
