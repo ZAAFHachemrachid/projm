@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Titlebar } from "@/components/titlebar";
 import { UpdateChecker } from "@/components/update-checker";
+import { ViewController } from "@/components/view-controller";
 import { themeInitScript } from "@/lib/themes";
 
 const geistSans = Geist({
@@ -31,6 +32,7 @@ export default function RootLayout({
       <body className="h-full bg-background text-foreground overflow-hidden flex flex-col">
         <Titlebar />
         <UpdateChecker />
+        <ViewController />
         <div className="flex-1 min-h-0">
           {children}
         </div>

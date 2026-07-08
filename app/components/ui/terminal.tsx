@@ -5,6 +5,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Terminal } from "@xterm/xterm";
 import type { SearchAddon } from "@xterm/addon-search";
+import {
+  getTermFontSize,
+  terminalFontFamily,
+  TERM_FONT_EVENT,
+} from "@/lib/view-prefs";
 
 interface TerminalViewProps {
   cwd: string;
@@ -52,6 +57,7 @@ export default function TerminalView({
     let unlistenData: (() => void) | null = null;
     let unlistenExit: (() => void) | null = null;
     let resizeObserver: ResizeObserver | null = null;
+    let onFontChange: ((e: Event) => void) | null = null;
     let raf = 0;
 
     async function initTerminal() {
@@ -77,8 +83,8 @@ export default function TerminalView({
 
       const term = new Terminal({
         cursorBlink: true,
-        fontFamily: "Geist Mono, Menlo, Monaco, Courier New, monospace",
-        fontSize: 13,
+        fontFamily: terminalFontFamily(),
+        fontSize: getTermFontSize(),
         lineHeight: 1.2,
         scrollback: 10_000,
         allowProposedApi: true,
@@ -129,18 +135,53 @@ export default function TerminalView({
 
       term.open(containerRef.current);
 
-      // GPU-accelerated renderer; falls back to the DOM renderer on context
-      // loss or when WebGL is unavailable in the webview.
+      // Renderer preference: GPU (WebGL) → Canvas → DOM. The packaged webview
+      // frequently can't get a WebGL context that dev does (WebKitGTK without
+      // the compositing env, WebView2 with GPU disabled), which silently drops
+      // xterm to the DOM renderer — the source of the release-only typing lag.
+      // Canvas is an order of magnitude faster than DOM, so fall back to it
+      // instead of straight to DOM.
+      const loadCanvasFallback = async () => {
+        try {
+          const { CanvasAddon } = await import("@xterm/addon-canvas");
+          if (!disposed) term.loadAddon(new CanvasAddon());
+        } catch (e) {
+          console.warn("Canvas renderer unavailable, using DOM renderer", e);
+        }
+      };
       try {
         const { WebglAddon } = await import("@xterm/addon-webgl");
         const webgl = new WebglAddon();
-        webgl.onContextLoss(() => webgl.dispose());
+        // On context loss, drop WebGL and pick up Canvas rather than DOM.
+        webgl.onContextLoss(() => {
+          webgl.dispose();
+          void loadCanvasFallback();
+        });
         term.loadAddon(webgl);
       } catch (err) {
-        console.warn("WebGL renderer unavailable, using DOM renderer", err);
+        console.warn("WebGL renderer unavailable, falling back to Canvas", err);
+        await loadCanvasFallback();
       }
 
       fitAddon.fit();
+
+      // Re-fit once the mono webfont has finished loading so the grid is sized
+      // against the real glyph metrics instead of a fallback font.
+      document.fonts?.ready
+        .then(() => {
+          if (!disposed && termRef.current) fitAddon.fit();
+        })
+        .catch(() => {});
+
+      // Live-apply terminal font-size changes from Settings without a reload.
+      onFontChange = (e: Event) => {
+        const px = (e as CustomEvent<number>).detail;
+        if (typeof px === "number" && termRef.current) {
+          termRef.current.options.fontSize = px;
+          fitAddon.fit();
+        }
+      };
+      window.addEventListener(TERM_FONT_EVENT, onFontChange);
 
       termRef.current = term;
       searchAddonRef.current = searchAddon;
@@ -248,6 +289,7 @@ export default function TerminalView({
       disposed = true;
       if (raf) cancelAnimationFrame(raf);
       if (resizeObserver) resizeObserver.disconnect();
+      if (onFontChange) window.removeEventListener(TERM_FONT_EVENT, onFontChange);
       if (unlistenData) unlistenData();
       if (unlistenExit) unlistenExit();
       if (termRef.current) {

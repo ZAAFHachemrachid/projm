@@ -37,6 +37,7 @@ import {
   DownloadCloud,
 } from "lucide-react";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { ZoomControl, TerminalFontControl } from "@/components/appearance-controls";
 import { SettingsUpdater } from "@/components/settings-updater";
 import { Dropdown } from "@/components/ui/dropdown";
 
@@ -1096,11 +1097,17 @@ export function SettingsPanel({
           )}
 
           {/* TAB: APPEARANCE */}
-          {activeTab === "appearance" && <ThemeSwitcher />}
+          {activeTab === "appearance" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <ZoomControl />
+              <ThemeSwitcher />
+            </div>
+          )}
 
           {/* TAB: TERMINAL */}
           {activeTab === "terminal" && (
             <div className="space-y-6 animate-in fade-in duration-200">
+              <TerminalFontControl />
               {/* Embedded Shell Card */}
               <Card className="border border-border bg-card/40 backdrop-blur-md rounded-xl shadow-none overflow-hidden transition-all duration-300 hover:border-border">
                 <CardHeader className="p-6 pb-4">
