@@ -2845,7 +2845,7 @@ dependencies = [
 
 [[package]]
 name = "projm"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2864,7 +2864,7 @@ dependencies = [
 
 [[package]]
 name = "projm-tauri"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "dirs",
  "portable-pty",
@@ -2883,7 +2883,7 @@ dependencies = [
 
 [[package]]
 name = "projm_core"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "colored",

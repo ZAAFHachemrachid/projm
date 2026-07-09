@@ -58,9 +58,18 @@ jobs:
         with:
           node-version: 22
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Install with bun to match local dev (bun.lock). npm ci fails here: the
+      # @xterm/addon-canvas WebGL→Canvas fallback peer-requires @xterm/xterm@^5
+      # while the app is on @xterm/xterm@^6, so npm's strict peer resolver
+      # aborts with ERESOLVE. bun only warns on the peer mismatch and installs.
       - name: Install frontend dependencies
         working-directory: app
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
