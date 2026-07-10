@@ -1173,6 +1173,17 @@ fn cmd_runner_stop_all(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // WebKitGTK's DMA-BUF renderer presents accelerated canvas/WebGL frames
+    // one damage-event late on some driver stacks (NVIDIA + Wayland being the
+    // known-bad combo), so a typed character only reaches the screen when the
+    // NEXT keystroke forces new damage. Shared-memory buffers don't have the
+    // stale-presentation problem. Must be set before the first webview is
+    // created; never clobber an explicit user choice.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
